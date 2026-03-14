@@ -191,7 +191,6 @@
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen p-2">
-    <!-- Loading Overlay -->
     <div id="loadingOverlay" class="loading-overlay">
         <div class="loading-spinner">
             <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-2"></div>
@@ -199,10 +198,8 @@
         </div>
     </div>
     
-    <!-- Notification -->
     <div id="notification" class="notification"></div>
 
-    <!-- QR Scan & Input Modal -->
     <div id="qrModal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
@@ -210,7 +207,6 @@
                 <button onclick="closeModal()" class="btn-close">✕ Tutup</button>
             </div>
             <div class="modal-body">
-                <!-- QR Scanner Section -->
                 <div id="scannerSection">
                     <p class="text-sm text-gray-600 mb-3 text-center">Arahkan kamera ke QR Code coil untuk scan data</p>
                     <div id="qr-reader" class="qr-scanner-container"></div>
@@ -221,7 +217,6 @@
                     <div id="qr-result" class="qr-result" style="display: none;"></div>
                 </div>
                 
-                <!-- Form Input Section -->
                 <div id="formSection" style="display: none;">
                     <div class="qr-data-display">
                         <p class="text-xs text-gray-600 mb-2 font-bold">📊 Data dari QR Code:</p>
@@ -393,8 +388,6 @@
     </div>
 
     <div class="max-w-[100%] mx-auto bg-white shadow-xl border border-black">
-        
-        <!-- Header Atas -->
         <div class="p-4 flex justify-between items-start border-b border-black">
             <div class="w-1/4">
                 <div class="border-b border-black pb-1 mb-1">
@@ -423,7 +416,6 @@
             </div>
         </div>
 
-        <!-- Area Tabel -->
         <div class="overflow-x-auto custom-scrollbar">
             <table class="border-collapse table-fixed" style="min-width: 3000px;">
                 <thead>
@@ -462,8 +454,7 @@
                         <th class="col-action">Action</th>
                     </tr>
                 </thead>
-                <tbody id="tableBody">
-                </tbody>
+                <tbody id="tableBody"></tbody>
             </table>
         </div>
 
@@ -479,7 +470,6 @@
             <div class="text-[10px]">Total Baris: <span id="itemCount" class="font-bold">0</span></div>
         </div>
 
-        <!-- Footer -->
         <div class="grid grid-cols-1 md:grid-cols-4 border-t border-black divide-x divide-black">
             <div class="p-2">
                 <span class="text-[10px] font-bold border-b border-black w-full block mb-1">Line Member</span>
@@ -524,54 +514,14 @@
 
     <script>
         // ==========================================
-        // CONFIGURATION - PASTE YOUR WEB APP URL HERE
+        // CONFIGURATION - URL DEPLOYMENT BARU
         // ==========================================
-        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxJ7sP221CjhvwCLglkGRi-pbcqTZKCtdsuUTYVdh7rcFVX2Md9Eo7820PNJZ6D-svyQA/exec';
+        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwxWXOiaP9ro0VtgbmRuAGZ_b6tb6lp_2pdK5Ga-qlNeZe2I0hlakqewIvkUHuyL-ZscQ/exec';
         
         let html5QrCode = null;
         let scannedQRData = null;
         
         document.getElementById('reportDate').valueAsDate = new Date();
-        
-        // ==========================================
-        // FETCH WITH RETRY & ERROR HANDLING
-        // ==========================================
-        
-        async function fetchWithRetry(url, options, maxRetries = 3) {
-            for (let i = 0; i < maxRetries; i++) {
-                try {
-                    console.log(`Attempt ${i + 1} to fetch...`);
-                    
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-                    
-                    const response = await fetch(url, {
-                        ...options,
-                        signal: controller.signal,
-                        mode: 'cors', // Explicitly set CORS mode
-                        credentials: 'omit' // Don't send cookies
-                    });
-                    
-                    clearTimeout(timeoutId);
-                    
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    
-                    return response;
-                    
-                } catch (error) {
-                    console.error(`Attempt ${i + 1} failed:`, error);
-                    
-                    if (i === maxRetries - 1) {
-                        throw error;
-                    }
-                    
-                    // Wait before retry (exponential backoff)
-                    await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
-                }
-            }
-        }
         
         // ==========================================
         // QR SCANNER FUNCTIONS
@@ -593,43 +543,23 @@
         
         function startScan() {
             html5QrCode = new Html5Qrcode("qr-reader");
-            
-            const config = {
-                fps: 10,
-                qrbox: { width: 250, height: 250 },
-                aspectRatio: 1.0
-            };
-            
-            html5QrCode.start(
-                { facingMode: "environment" },
-                config,
-                onScanSuccess,
-                onScanError
-            ).catch(err => {
-                showNotification('Error starting camera: ' + err, 'error');
-            });
+            const config = { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 };
+            html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, onScanError)
+                .catch(err => showNotification('Error starting camera: ' + err, 'error'));
         }
         
         function stopScan() {
             if (html5QrCode) {
-                html5QrCode.stop().then(() => {
-                    html5QrCode = null;
-                }).catch(err => {
-                    console.error('Error stopping scan:', err);
-                });
+                html5QrCode.stop().then(() => { html5QrCode = null; }).catch(err => console.error(err));
             }
         }
         
-        function onScanSuccess(decodedText, decodedResult) {
-            console.log('QR Code scanned:', decodedText);
-            
+        function onScanSuccess(decodedText) {
             const qrData = decodedText.split(',');
-            
             if (qrData.length < 6) {
-                showNotification('Invalid QR Code format. Expected at least 6 data fields.', 'error');
+                showNotification('Invalid QR Code format', 'error');
                 return;
             }
-            
             scannedQRData = {
                 qrcode: decodedText,
                 ccNo: qrData[0].trim(),
@@ -637,78 +567,46 @@
                 rawMaterialSize: qrData[2].trim(),
                 weightRM: qrData[5].trim()
             };
-            
-            document.getElementById('qr-result').innerHTML = `
-                <strong>✅ QR Code berhasil discan!</strong><br>
-                CC NO: ${scannedQRData.ccNo} | Spec: ${scannedQRData.spec} | Weight: ${scannedQRData.weightRM}
-            `;
+            document.getElementById('qr-result').innerHTML = `<strong>✅ Berhasil!</strong><br>${scannedQRData.ccNo} | ${scannedQRData.spec}`;
             document.getElementById('qr-result').style.display = 'block';
-            
             stopScan();
             showFormWithQRData();
-            showNotification('QR Code scanned successfully!');
         }
         
-        function onScanError(errorMessage) {
-            console.log('Scan error:', errorMessage);
-        }
-        
+        function onScanError(err) { console.log(err); }
+
         function showFormWithQRData() {
             if (!scannedQRData) return;
-            
             document.getElementById('qrCCNO').textContent = scannedQRData.ccNo;
             document.getElementById('qrSpec').textContent = scannedQRData.spec;
             document.getElementById('qrRawSize').textContent = scannedQRData.rawMaterialSize;
             document.getElementById('qrWeight').textContent = scannedQRData.weightRM;
-            
             document.getElementById('scannerSection').style.display = 'none';
             document.getElementById('formSection').style.display = 'block';
         }
-        
+
         function calculateQtyTotal() {
             const fg = parseInt(document.getElementById('formQtyFG').value) || 0;
             const ng = parseInt(document.getElementById('formQtyNG').value) || 0;
             document.getElementById('formQtyTotal').value = fg + ng;
         }
-        
+
         function resetForm() {
             document.getElementById('productionForm').reset();
             document.getElementById('qr-result').style.display = 'none';
             scannedQRData = null;
-            
-            document.getElementById('qrCCNO').textContent = '-';
-            document.getElementById('qrSpec').textContent = '-';
-            document.getElementById('qrRawSize').textContent = '-';
-            document.getElementById('qrWeight').textContent = '-';
-            
             document.getElementById('scannerSection').style.display = 'block';
             document.getElementById('formSection').style.display = 'none';
         }
-        
+
         // ==========================================
-        // SUBMIT TO DATABASE - IMPROVED VERSION
+        // SUBMIT & FETCH - PERBAIKAN CORS
         // ==========================================
         
         async function submitForm() {
-            if (!scannedQRData) {
-                showNotification('Please scan QR Code first', 'error');
-                return;
-            }
-            
-            // Validate required fields
-            const requiredFields = ['formLine', 'formCustomer', 'formActualWidth', 'formProductSize', 'formQtyFG', 'formQtyNG', 'formTotalLength'];
-            for (let fieldId of requiredFields) {
-                const field = document.getElementById(fieldId);
-                if (!field.value.trim()) {
-                    field.focus();
-                    showNotification('Please fill all required fields', 'error');
-                    return;
-                }
-            }
+            if (!scannedQRData) return showNotification('Scan QR dulu', 'error');
             
             showLoading(true);
-            
-            // Prepare data for backend
             const payload = {
                 action: 'saveReport',
                 line: document.getElementById('formLine').value,
@@ -724,273 +622,141 @@
                 qtyFG: document.getElementById('formQtyFG').value,
                 qtyNG: document.getElementById('formQtyNG').value,
                 totalLength: document.getElementById('formTotalLength').value,
-                coilSetLifter: document.getElementById('formCoilSetLifter').value || '',
-                startProses: document.getElementById('formStartProses').value || '',
-                endProses: document.getElementById('formEndProses').value || '',
-                productKeluar: document.getElementById('formProductKeluar').value || '',
-                tbm: document.getElementById('formTBM').value || '',
-                packingCoilBack: document.getElementById('formPackingCoilBack').value || '',
-                waitingMC: document.getElementById('formWaitingMC').value || '',
-                waitingHagumi: document.getElementById('formWaitingHagumi').value || '',
-                hagumiSeparator: document.getElementById('formHagumiSeparator').value || '',
-                winderTopEnd: document.getElementById('formWinderTopEnd').value || '',
-                cleaningMesin: document.getElementById('formCleaningMesin').value || '',
-                machineProblem: document.getElementById('formMachineProblem').value || '',
-                other: document.getElementById('formOther').value || '',
-                remark: document.getElementById('formRemark').value || '',
-                lineMember: document.getElementById('formLineMember').value || '',
-                ot: document.getElementById('formOT').value || '',
-                reportBy: document.getElementById('formReportBy').value || ''
+                coilSetLifter: document.getElementById('formCoilSetLifter').value,
+                startProses: document.getElementById('formStartProses').value,
+                endProses: document.getElementById('formEndProses').value,
+                productKeluar: document.getElementById('formProductKeluar').value,
+                tbm: document.getElementById('formTBM').value,
+                packingCoilBack: document.getElementById('formPackingCoilBack').value,
+                waitingMC: document.getElementById('formWaitingMC').value,
+                waitingHagumi: document.getElementById('formWaitingHagumi').value,
+                hagumiSeparator: document.getElementById('formHagumiSeparator').value,
+                winderTopEnd: document.getElementById('formWinderTopEnd').value,
+                cleaningMesin: document.getElementById('formCleaningMesin').value,
+                machineProblem: document.getElementById('formMachineProblem').value,
+                other: document.getElementById('formOther').value,
+                remark: document.getElementById('formRemark').value,
+                lineMember: document.getElementById('formLineMember').value,
+                ot: document.getElementById('formOT').value,
+                reportBy: document.getElementById('formReportBy').value
             };
-            
-            console.log('Sending payload:', payload);
-            
+
             try {
-                // Use fetchWithRetry instead of regular fetch
-                const response = await fetchWithRetry(GAS_WEB_APP_URL, {
+                // KUNCI: Gunakan text/plain untuk bypass CORS Preflight
+                const response = await fetch(GAS_WEB_APP_URL, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    mode: 'no-cors', // Mencegah error redirect di browser tertentu
+                    headers: { 'Content-Type': 'text/plain' },
                     body: JSON.stringify(payload)
                 });
-                
-                const result = await response.json();
-                console.log('Response:', result);
-                
-                if (result.success) {
-                    showNotification('✅ Data berhasil disimpan ke database! Row: ' + result.rowNumber);
-                    closeModal();
-                    // Add small delay before refresh
-                    setTimeout(() => {
-                        loadByDate();
-                    }, 1000);
-                } else {
-                    showNotification('❌ Error: ' + (result.error || 'Unknown error'), 'error');
-                }
-                
+
+                showNotification('✅ Data terkirim! Memperbarui tabel...');
+                closeModal();
+                setTimeout(() => loadByDate(), 2000);
             } catch (error) {
-                console.error('Submit error:', error);
-                
-                let errorMsg = 'Failed to save data';
-                if (error.name === 'AbortError') {
-                    errorMsg = 'Request timeout - server took too long to respond';
-                } else if (error.message.includes('Failed to fetch')) {
-                    errorMsg = 'Network error - check internet connection and CORS settings';
-                } else {
-                    errorMsg = error.message;
-                }
-                
-                showNotification('❌ ' + errorMsg, 'error');
-                
-                // Show detailed error in console for debugging
-                console.error('Full error details:', {
-                    message: error.message,
-                    name: error.name,
-                    stack: error.stack
-                });
+                showNotification('❌ Error: ' + error.message, 'error');
             } finally {
                 showLoading(false);
             }
         }
-        
-        // ==========================================
-        // UI FUNCTIONS
-        // ==========================================
-        
-        function showLoading(show) {
-            document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
-        }
-        
-        function showNotification(message, type = 'success') {
-            const notif = document.getElementById('notification');
-            notif.textContent = message;
-            notif.className = 'notification ' + type;
-            notif.style.display = 'block';
-            setTimeout(() => {
-                notif.style.display = 'none';
-            }, 5000);
-        }
-        
-        function addRow(data) {
-            const tbody = document.getElementById('tableBody');
-            const rowCount = tbody.rows.length + 1;
-            
-            const newRow = document.createElement('tr');
-            
-            newRow.innerHTML = `
-                <td class="text-center">${rowCount}</td>
-                <td><input type="text" class="table-input" value="${data.Line || ''}"></td>
-                <td><input type="text" class="table-input" value="${data.QRCODE || ''}"></td>
-                <td><input type="text" class="table-input" value="${data['CC No'] || ''}"></td>
-                <td><input type="text" class="table-input text-left px-1" value="${data.Customer || ''}"></td>
-                <td><input type="text" class="table-input" value="${data.Spec || ''}"></td>
-                <td><input type="text" class="table-input" value="${data['Raw Material Size'] || ''}"></td>
-                <td><input type="text" class="table-input" value="${data['Actual Width Raw Material'] || ''}"></td>
-                <td><input type="text" class="table-input" value="${data['Weight Raw Material'] || ''}"></td>
-                <td><input type="text" class="table-input" value="${data['Weight Coil Back'] || ''}"></td>
-                <td><input type="text" class="table-input" value="${data['Product Size'] || ''}"></td>
-                <td><input type="text" class="table-input" value="${data['Qty FG'] || ''}"></td>
-                <td><input type="text" class="table-input" value="${data['Qty NG'] || ''}"></td>
-                <td><input type="text" class="table-input" value="${data['Qty Total'] || ''}"></td>
-                <td><input type="text" class="table-input" value="${data['Total Length'] || ''}"></td>
-                <td><input type="text" class="table-input" value="${data['Coil Set Lifter'] || ''}"></td>
-                <td><input type="text" class="table-input" value="${data['Start Proses'] || ''}"></td>
-                <td><input type="text" class="table-input" value="${data['End Proses'] || ''}"></td>
-                <td><input type="text" class="table-input" value="${data['Product Keluar dari Mesin'] || ''}"></td>
-                <td><input type="text" class="table-input bg-gray-50" value="${data.TBM || ''}"></td>
-                <td><input type="text" class="table-input bg-gray-50" value="${data['Packing Coil Back'] || ''}"></td>
-                <td><input type="text" class="table-input bg-gray-50" value="${data['Waiting MC'] || ''}"></td>
-                <td><input type="text" class="table-input bg-gray-50" value="${data['Waiting Hagumi'] || ''}"></td>
-                <td><input type="text" class="table-input bg-gray-50" value="${data['Hagumi/Separator'] || ''}"></td>
-                <td><input type="text" class="table-input bg-gray-50" value="${data['Winder Top/End'] || ''}"></td>
-                <td><input type="text" class="table-input bg-gray-50" value="${data['Cleaning Mesin'] || ''}"></td>
-                <td><input type="text" class="table-input bg-gray-50" value="${data['Machine Problem'] || ''}"></td>
-                <td><input type="text" class="table-input bg-gray-50" value="${data.Other || ''}"></td>
-                <td><input type="text" class="table-input text-left px-1" value="${data.Remark || ''}"></td>
-                <td><input type="text" class="table-input" value="${data['Line Member'] || ''}"></td>
-                <td><input type="text" class="table-input" value="${data.OT || ''}"></td>
-                <td class="text-center bg-gray-50">
-                    <button onclick="removeRow(this)" class="text-red-600 hover:text-red-800 text-[9px] font-bold">HAPUS</button>
-                </td>
-            `;
-            
-            tbody.appendChild(newRow);
-            updateCount();
-            updateTotals();
-        }
-        
-        function removeRow(btn) {
-            const row = btn.closest('tr');
-            row.remove();
-            renumberRows();
-            updateCount();
-            updateTotals();
-        }
-        
-        function renumberRows() {
-            const rows = document.querySelectorAll('#tableBody tr');
-            rows.forEach((row, index) => {
-                row.cells[0].textContent = index + 1;
-            });
-        }
-        
-        function updateCount() {
-            const tbody = document.getElementById('tableBody');
-            document.getElementById('itemCount').textContent = tbody.rows.length;
-        }
-        
-        function updateTotals() {
-            const rows = document.querySelectorAll('#tableBody tr');
-            let totalCoil = 0;
-            let totalWeight = 0;
-            
-            rows.forEach(row => {
-                const qtyTotal = parseFloat(row.cells[13].querySelector('input').value) || 0;
-                const weight = parseFloat(row.cells[8].querySelector('input').value.replace(/,/g, '')) || 0;
-                totalCoil += qtyTotal;
-                totalWeight += weight;
-            });
-            
-            document.getElementById('totalCoil').textContent = totalCoil;
-            document.getElementById('totalWeight').textContent = totalWeight.toLocaleString();
-        }
-        
-        function clearAll() {
-            if (confirm('Clear all data?')) {
-                document.getElementById('tableBody').innerHTML = '';
-                updateCount();
-                updateTotals();
-            }
-        }
-        
-        // ==========================================
-        // LOAD DATA FUNCTIONS
-        // ==========================================
-        
+
         async function loadByDate() {
             const date = document.getElementById('reportDate').value;
-            if (!date) {
-                showNotification('Please select a date', 'error');
-                return;
-            }
-            
+            if (!date) return;
             showLoading(true);
-            
             try {
-                const response = await fetchWithRetry(`${GAS_WEB_APP_URL}?action=getByDate&date=${date}`, {
-                    method: 'GET'
-                });
-                
+                const response = await fetch(`${GAS_WEB_APP_URL}?action=getByDate&date=${date}`);
                 const result = await response.json();
-                
                 if (result.success) {
                     populateTable(result.data);
                     showNotification(`✅ Loaded ${result.data.length} records`);
-                } else {
-                    showNotification('❌ Error: ' + result.error, 'error');
                 }
             } catch (error) {
-                console.error('Load error:', error);
-                showNotification('❌ Failed to load: ' + error.message, 'error');
+                showNotification('❌ Gagal memuat data', 'error');
             } finally {
                 showLoading(false);
             }
         }
-        
+
         async function loadByLine() {
-            const line = prompt('Enter Line (e.g., LV1, LM1, etc.):');
+            const line = prompt('Masukkan Line (contoh: LV1):');
             if (!line) return;
-            
             showLoading(true);
-            
             try {
-                const response = await fetchWithRetry(`${GAS_WEB_APP_URL}?action=getByLine&line=${line}`, {
-                    method: 'GET'
-                });
-                
+                const response = await fetch(`${GAS_WEB_APP_URL}?action=getByLine&line=${line}`);
                 const result = await response.json();
-                
-                if (result.success) {
-                    populateTable(result.data);
-                    showNotification(`✅ Loaded ${result.data.length} records for ${line}`);
-                } else {
-                    showNotification('❌ Error: ' + result.error, 'error');
-                }
+                if (result.success) populateTable(result.data);
             } catch (error) {
-                showNotification('❌ Failed to load: ' + error.message, 'error');
+                showNotification('❌ Gagal memuat data', 'error');
             } finally {
                 showLoading(false);
             }
         }
-        
+
+        // ==========================================
+        // UI HELPERS
+        // ==========================================
         function populateTable(data) {
-            document.getElementById('tableBody').innerHTML = '';
-            
-            if (data.length === 0) {
-                showNotification('No data found');
-                return;
-            }
-            
-            data.forEach(record => {
-                addRow(record);
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            data.forEach((record, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="text-center">${index + 1}</td>
+                    <td><input type="text" class="table-input" value="${record.Line || ''}"></td>
+                    <td><input type="text" class="table-input" value="${record.QRCODE || ''}"></td>
+                    <td><input type="text" class="table-input" value="${record['CC No'] || ''}"></td>
+                    <td><input type="text" class="table-input px-1" value="${record.Customer || ''}"></td>
+                    <td><input type="text" class="table-input" value="${record.Spec || ''}"></td>
+                    <td><input type="text" class="table-input" value="${record['Raw Material Size'] || ''}"></td>
+                    <td><input type="text" class="table-input" value="${record['Actual Width Raw Material'] || ''}"></td>
+                    <td><input type="text" class="table-input" value="${record['Weight Raw Material'] || ''}"></td>
+                    <td><input type="text" class="table-input" value="${record['Weight Coil Back'] || ''}"></td>
+                    <td><input type="text" class="table-input" value="${record['Product Size'] || ''}"></td>
+                    <td><input type="text" class="table-input" value="${record['Qty FG'] || ''}"></td>
+                    <td><input type="text" class="table-input" value="${record['Qty NG'] || ''}"></td>
+                    <td><input type="text" class="table-input" value="${record['Qty Total'] || ''}"></td>
+                    <td><input type="text" class="table-input" value="${record['Total Length'] || ''}"></td>
+                    <td><input type="text" class="table-input" value="${record['Coil Set Lifter'] || ''}"></td>
+                    <td><input type="text" class="table-input" value="${record['Start Proses'] || ''}"></td>
+                    <td><input type="text" class="table-input" value="${record['End Proses'] || ''}"></td>
+                    <td><input type="text" class="table-input" value="${record['Product Keluar dari Mesin'] || ''}"></td>
+                    <td class="bg-gray-50"><input type="text" class="table-input" value="${record.TBM || ''}"></td>
+                    <td class="bg-gray-50"><input type="text" class="table-input" value="${record['Packing Coil Back'] || ''}"></td>
+                    <td class="bg-gray-50"><input type="text" class="table-input" value="${record['Waiting MC'] || ''}"></td>
+                    <td class="bg-gray-50"><input type="text" class="table-input" value="${record['Waiting Hagumi'] || ''}"></td>
+                    <td class="bg-gray-50"><input type="text" class="table-input" value="${record['Hagumi/Separator'] || ''}"></td>
+                    <td class="bg-gray-50"><input type="text" class="table-input" value="${record['Winder Top/End'] || ''}"></td>
+                    <td class="bg-gray-50"><input type="text" class="table-input" value="${record['Cleaning Mesin'] || ''}"></td>
+                    <td class="bg-gray-50"><input type="text" class="table-input" value="${record['Machine Problem'] || ''}"></td>
+                    <td class="bg-gray-50"><input type="text" class="table-input" value="${record.Other || ''}"></td>
+                    <td><input type="text" class="table-input px-1" value="${record.Remark || ''}"></td>
+                    <td><input type="text" class="table-input" value="${record['Line Member'] || ''}"></td>
+                    <td><input type="text" class="table-input" value="${record.OT || ''}"></td>
+                    <td class="text-center bg-gray-50"><button class="text-red-600 text-[9px] font-bold">HAPUS</button></td>
+                `;
+                tbody.appendChild(row);
             });
-            
             updateTotals();
         }
-        
-        // Event listeners
-        document.addEventListener('input', function(e) {
-            if (e.target.classList.contains('table-input')) {
-                updateTotals();
-            }
-        });
-        
-        document.getElementById('qrModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeModal();
-            }
-        });
+
+        function showLoading(s) { document.getElementById('loadingOverlay').style.display = s ? 'flex' : 'none'; }
+        function showNotification(m, t = 'success') {
+            const n = document.getElementById('notification');
+            n.textContent = m; n.className = 'notification ' + t; n.style.display = 'block';
+            setTimeout(() => n.style.display = 'none', 4000);
+        }
+        function updateTotals() {
+            const rows = document.querySelectorAll('#tableBody tr');
+            let tc = 0, tw = 0;
+            rows.forEach(r => {
+                tc += parseFloat(r.cells[13].querySelector('input').value) || 0;
+                tw += parseFloat(r.cells[8].querySelector('input').value) || 0;
+            });
+            document.getElementById('totalCoil').textContent = tc;
+            document.getElementById('totalWeight').textContent = tw.toLocaleString();
+            document.getElementById('itemCount').textContent = rows.length;
+        }
     </script>
 </body>
 </html>
