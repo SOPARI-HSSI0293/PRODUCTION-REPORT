@@ -16,14 +16,6 @@
             overflow-wrap: break-word;
             vertical-align: middle;
         }
-        .header-group {
-            @apply bg-white text-[9px] font-normal py-0 uppercase border-b-0;
-            height: auto;
-            min-height: 22px;
-            white-space: normal;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-        }
         td { 
             @apply text-[10px] p-0 whitespace-nowrap overflow-hidden text-ellipsis h-8 font-normal;
         }
@@ -65,12 +57,6 @@
             justify-content: center;
             align-items: center;
             z-index: 9999;
-        }
-        .loading-spinner {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            text-align: center;
         }
         .notification {
             position: fixed;
@@ -126,16 +112,8 @@
             grid-template-columns: repeat(3, 1fr);
             gap: 12px;
         }
-        .form-group {
-            display: flex;
-            flex-direction: column;
-        }
-        .form-group.full-width {
-            grid-column: 1 / -1;
-        }
-        .form-group.half-width {
-            grid-column: span 2;
-        }
+        .form-group { display: flex; flex-direction: column; }
+        .form-group.full-width { grid-column: 1 / -1; }
         .form-group label {
             font-size: 10px;
             font-weight: bold;
@@ -161,15 +139,8 @@
             gap: 20px;
             flex-wrap: wrap;
         }
-        .qr-data-row span {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-        }
-        .qr-data-row .label {
-            font-weight: bold;
-            color: #1e40af;
-        }
+        .qr-data-row .label { font-weight: bold; color: #1e40af; }
+        
         .btn-close {
             background: #ef4444;
             color: white;
@@ -179,7 +150,6 @@
             cursor: pointer;
             font-size: 12px;
         }
-        .btn-close:hover { background: #dc2626; }
         .btn-primary {
             background: #1e40af;
             color: white;
@@ -190,7 +160,6 @@
             font-size: 12px;
             font-weight: bold;
         }
-        .btn-primary:hover { background: #1e3a8a; }
         .btn-secondary {
             background: #6b7280;
             color: white;
@@ -200,7 +169,6 @@
             cursor: pointer;
             font-size: 12px;
         }
-        .btn-secondary:hover { background: #4b5563; }
         .scan-btn {
             background: #10b981;
             color: white;
@@ -211,15 +179,6 @@
             font-size: 14px;
             font-weight: bold;
             margin: 10px 0;
-        }
-        .scan-btn:hover { background: #059669; }
-        .qr-result {
-            background: #d1fae5;
-            border: 1px solid #10b981;
-            padding: 10px;
-            border-radius: 4px;
-            margin: 10px 0;
-            font-size: 12px;
         }
         .section-title {
             font-size: 12px;
@@ -262,7 +221,7 @@
                     <div id="qr-result" class="qr-result" style="display: none;"></div>
                 </div>
                 
-                <!-- Form Input Section (Hidden initially) -->
+                <!-- Form Input Section -->
                 <div id="formSection" style="display: none;">
                     <div class="qr-data-display">
                         <p class="text-xs text-gray-600 mb-2 font-bold">📊 Data dari QR Code:</p>
@@ -275,7 +234,6 @@
                     </div>
                     
                     <form id="productionForm" class="form-grid">
-                        <!-- Basic Info -->
                         <div class="form-group">
                             <label>Line *</label>
                             <select id="formLine" required>
@@ -317,7 +275,6 @@
                             <input type="text" id="formProductSize" required placeholder="Contoh: 1.20 x 1219 x C">
                         </div>
                         
-                        <!-- Qty Section -->
                         <div class="form-group">
                             <label>Qty FG *</label>
                             <input type="number" id="formQtyFG" required placeholder="0" min="0" onchange="calculateQtyTotal()">
@@ -338,7 +295,6 @@
                             <input type="text" id="formTotalLength" required placeholder="Contoh: 150 m">
                         </div>
                         
-                        <!-- Time Section -->
                         <div class="form-group">
                             <label>Coil Set Lifter</label>
                             <input type="time" id="formCoilSetLifter">
@@ -359,7 +315,6 @@
                             <input type="time" id="formProductKeluar">
                         </div>
                         
-                        <!-- Down Time Section -->
                         <div class="section-title full-width">⏱️ Down Time (menit)</div>
                         
                         <div class="form-group">
@@ -407,7 +362,6 @@
                             <input type="number" id="formOther" placeholder="0" min="0">
                         </div>
                         
-                        <!-- Other Info -->
                         <div class="form-group full-width">
                             <label>Remark / Catatan</label>
                             <input type="text" id="formRemark" placeholder="Keterangan tambahan...">
@@ -431,7 +385,7 @@
                     
                     <div class="mt-4 flex justify-end space-x-2">
                         <button onclick="resetForm()" class="btn-secondary">🔄 Reset</button>
-                        <button onclick="submitForm()" class="btn-primary">✅ Simpan ke Database</button>
+                        <button onclick="submitForm()" class="btn-primary">💾 Simpan ke Database</button>
                     </div>
                 </div>
             </div>
@@ -509,7 +463,6 @@
                     </tr>
                 </thead>
                 <tbody id="tableBody">
-                    <!-- Rows will be dynamically generated -->
                 </tbody>
             </table>
         </div>
@@ -571,7 +524,7 @@
 
     <script>
         // ==========================================
-        // CONFIGURATION
+        // CONFIGURATION - PASTE YOUR WEB APP URL HERE
         // ==========================================
         const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxJ7sP221CjhvwCLglkGRi-pbcqTZKCtdsuUTYVdh7rcFVX2Md9Eo7820PNJZ6D-svyQA/exec';
         
@@ -579,6 +532,46 @@
         let scannedQRData = null;
         
         document.getElementById('reportDate').valueAsDate = new Date();
+        
+        // ==========================================
+        // FETCH WITH RETRY & ERROR HANDLING
+        // ==========================================
+        
+        async function fetchWithRetry(url, options, maxRetries = 3) {
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    console.log(`Attempt ${i + 1} to fetch...`);
+                    
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+                    
+                    const response = await fetch(url, {
+                        ...options,
+                        signal: controller.signal,
+                        mode: 'cors', // Explicitly set CORS mode
+                        credentials: 'omit' // Don't send cookies
+                    });
+                    
+                    clearTimeout(timeoutId);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
+                    return response;
+                    
+                } catch (error) {
+                    console.error(`Attempt ${i + 1} failed:`, error);
+                    
+                    if (i === maxRetries - 1) {
+                        throw error;
+                    }
+                    
+                    // Wait before retry (exponential backoff)
+                    await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
+                }
+            }
+        }
         
         // ==========================================
         // QR SCANNER FUNCTIONS
@@ -630,7 +623,6 @@
         function onScanSuccess(decodedText, decodedResult) {
             console.log('QR Code scanned:', decodedText);
             
-            // Parse QR Code data (9 fields separated by comma)
             const qrData = decodedText.split(',');
             
             if (qrData.length < 6) {
@@ -638,16 +630,14 @@
                 return;
             }
             
-            // Store scanned data (using indices 0,1,2,5 as specified)
             scannedQRData = {
-                qrcode: decodedText,           // Full QR data
-                ccNo: qrData[0].trim(),          // Data 1 -> CC No
-                spec: qrData[1].trim(),          // Data 2 -> Spec
-                rawMaterialSize: qrData[2].trim(), // Data 3 -> Raw Material Size
-                weightRM: qrData[5].trim()       // Data 6 -> Weight Raw Material
+                qrcode: decodedText,
+                ccNo: qrData[0].trim(),
+                spec: qrData[1].trim(),
+                rawMaterialSize: qrData[2].trim(),
+                weightRM: qrData[5].trim()
             };
             
-            // Display result
             document.getElementById('qr-result').innerHTML = `
                 <strong>✅ QR Code berhasil discan!</strong><br>
                 CC NO: ${scannedQRData.ccNo} | Spec: ${scannedQRData.spec} | Weight: ${scannedQRData.weightRM}
@@ -696,7 +686,7 @@
         }
         
         // ==========================================
-        // SUBMIT TO DATABASE
+        // SUBMIT TO DATABASE - IMPROVED VERSION
         // ==========================================
         
         async function submitForm() {
@@ -719,7 +709,7 @@
             showLoading(true);
             
             // Prepare data for backend
-            const data = {
+            const payload = {
                 action: 'saveReport',
                 line: document.getElementById('formLine').value,
                 qrcode: scannedQRData.qrcode,
@@ -753,24 +743,52 @@
                 reportBy: document.getElementById('formReportBy').value || ''
             };
             
+            console.log('Sending payload:', payload);
+            
             try {
-                const response = await fetch(GAS_WEB_APP_URL, {
+                // Use fetchWithRetry instead of regular fetch
+                const response = await fetchWithRetry(GAS_WEB_APP_URL, {
                     method: 'POST',
-                    body: JSON.stringify(data)
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
                 });
                 
                 const result = await response.json();
+                console.log('Response:', result);
                 
                 if (result.success) {
-                    showNotification('Data berhasil disimpan ke database!');
+                    showNotification('✅ Data berhasil disimpan ke database! Row: ' + result.rowNumber);
                     closeModal();
-                    // Refresh table
-                    loadByDate();
+                    // Add small delay before refresh
+                    setTimeout(() => {
+                        loadByDate();
+                    }, 1000);
                 } else {
-                    showNotification('Error: ' + result.error, 'error');
+                    showNotification('❌ Error: ' + (result.error || 'Unknown error'), 'error');
                 }
+                
             } catch (error) {
-                showNotification('Error: ' + error.message, 'error');
+                console.error('Submit error:', error);
+                
+                let errorMsg = 'Failed to save data';
+                if (error.name === 'AbortError') {
+                    errorMsg = 'Request timeout - server took too long to respond';
+                } else if (error.message.includes('Failed to fetch')) {
+                    errorMsg = 'Network error - check internet connection and CORS settings';
+                } else {
+                    errorMsg = error.message;
+                }
+                
+                showNotification('❌ ' + errorMsg, 'error');
+                
+                // Show detailed error in console for debugging
+                console.error('Full error details:', {
+                    message: error.message,
+                    name: error.name,
+                    stack: error.stack
+                });
             } finally {
                 showLoading(false);
             }
@@ -791,7 +809,7 @@
             notif.style.display = 'block';
             setTimeout(() => {
                 notif.style.display = 'none';
-            }, 3000);
+            }, 5000);
         }
         
         function addRow(data) {
@@ -900,17 +918,21 @@
             showLoading(true);
             
             try {
-                const response = await fetch(`${GAS_WEB_APP_URL}?action=getByDate&date=${date}`);
+                const response = await fetchWithRetry(`${GAS_WEB_APP_URL}?action=getByDate&date=${date}`, {
+                    method: 'GET'
+                });
+                
                 const result = await response.json();
                 
                 if (result.success) {
                     populateTable(result.data);
-                    showNotification(`Loaded ${result.data.length} records`);
+                    showNotification(`✅ Loaded ${result.data.length} records`);
                 } else {
-                    showNotification('Error loading data', 'error');
+                    showNotification('❌ Error: ' + result.error, 'error');
                 }
             } catch (error) {
-                showNotification('Error: ' + error.message, 'error');
+                console.error('Load error:', error);
+                showNotification('❌ Failed to load: ' + error.message, 'error');
             } finally {
                 showLoading(false);
             }
@@ -923,17 +945,20 @@
             showLoading(true);
             
             try {
-                const response = await fetch(`${GAS_WEB_APP_URL}?action=getByLine&line=${line}`);
+                const response = await fetchWithRetry(`${GAS_WEB_APP_URL}?action=getByLine&line=${line}`, {
+                    method: 'GET'
+                });
+                
                 const result = await response.json();
                 
                 if (result.success) {
                     populateTable(result.data);
-                    showNotification(`Loaded ${result.data.length} records for ${line}`);
+                    showNotification(`✅ Loaded ${result.data.length} records for ${line}`);
                 } else {
-                    showNotification('Error loading data', 'error');
+                    showNotification('❌ Error: ' + result.error, 'error');
                 }
             } catch (error) {
-                showNotification('Error: ' + error.message, 'error');
+                showNotification('❌ Failed to load: ' + error.message, 'error');
             } finally {
                 showLoading(false);
             }
