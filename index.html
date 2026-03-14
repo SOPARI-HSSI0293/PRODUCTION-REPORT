@@ -1,762 +1,228 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Production Report System</title>
+    <title>QC Production Report</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <style>
-        table, th, td { border: 1px solid #000 !important; }
-        th { 
-            @apply bg-gray-100 text-[9px] font-normal text-center uppercase tracking-tighter leading-tight p-1;
-            height: 50px;
-            white-space: normal;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            vertical-align: middle;
-        }
-        td { 
-            @apply text-[10px] p-0 whitespace-nowrap overflow-hidden text-ellipsis h-8 font-normal;
-        }
-        .col-no { width: 35px; }
-        .col-line { width: 50px; }
-        .col-qrcode { width: 80px; }
-        .col-ccno { width: 120px; }
-        .col-cust { width: 150px; }
-        .col-spec { width: 80px; }
-        .col-rawsize { width: 100px; }
-        .col-actual { width: 80px; }
-        .col-weight { width: 80px; }
-        .col-weightback { width: 80px; }
-        .col-prod-size { width: 100px; }
-        .col-qty { width: 50px; }
-        .col-qty-total { width: 60px; }
-        .col-len { width: 80px; }
-        .col-time { width: 70px; }
-        .col-dt { width: 60px; }
-        .col-remark { width: 150px; }
-        .col-linemember { width: 100px; }
-        .col-ot { width: 50px; }
-        .col-action { width: 60px; }
-
-        .table-input { 
-            @apply w-full h-full text-center text-[10px] focus:outline-none focus:bg-blue-50 font-normal; 
-            border: none !important; 
-            background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar { height: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #888; border-radius: 5px; }
-        
-        .loading-overlay {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
-        }
-        .notification {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 15px 20px;
-            border-radius: 5px;
-            color: white;
-            font-weight: bold;
-            z-index: 10000;
-            display: none;
-        }
-        .notification.success { background: #10b981; }
-        .notification.error { background: #ef4444; }
-        
-        .modal-overlay {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 9998;
-        }
-        .modal-content {
-            background: white;
-            border-radius: 8px;
-            width: 95%;
-            max-width: 900px;
-            max-height: 95vh;
-            overflow-y: auto;
-        }
-        .modal-header {
-            background: #1e40af;
-            color: white;
-            padding: 15px 20px;
-            border-radius: 8px 8px 0 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .modal-body { padding: 20px; }
-        .qr-scanner-container {
-            width: 100%;
-            max-width: 400px;
-            margin: 0 auto 20px;
-            border: 2px solid #1e40af;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-        .form-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-        }
-        .form-group { display: flex; flex-direction: column; }
-        .form-group.full-width { grid-column: 1 / -1; }
-        .form-group label {
-            font-size: 10px;
-            font-weight: bold;
-            margin-bottom: 3px;
-            color: #374151;
-        }
-        .form-group input, .form-group select {
-            padding: 6px 8px;
-            border: 1px solid #d1d5db;
-            border-radius: 4px;
-            font-size: 11px;
-        }
-        .qr-data-display {
-            background: #dbeafe;
-            border: 1px solid #1e40af;
-            padding: 10px;
-            border-radius: 4px;
-            font-size: 11px;
-            margin-bottom: 15px;
-        }
-        .qr-data-row {
-            display: flex;
-            gap: 20px;
-            flex-wrap: wrap;
-        }
-        .qr-data-row .label { font-weight: bold; color: #1e40af; }
-        
-        .btn-close {
-            background: #ef4444;
-            color: white;
-            border: none;
-            padding: 5px 15px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-        }
-        .btn-primary {
-            background: #1e40af;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-            font-weight: bold;
-        }
-        .btn-secondary {
-            background: #6b7280;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-        }
-        .scan-btn {
-            background: #10b981;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: bold;
-            margin: 10px 0;
-        }
-        .section-title {
-            font-size: 12px;
-            font-weight: bold;
-            color: #1e40af;
-            margin: 15px 0 10px 0;
-            padding-bottom: 5px;
-            border-bottom: 2px solid #e5e7eb;
-        }
+        .table-input { border: none !important; background: transparent; width: 100%; text-align: center; font-size: 10px; }
+        th { font-size: 9px; background: #f3f4f6; border: 1px solid #000; padding: 4px; }
+        td { border: 1px solid #000; height: 30px; }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 50; align-items: center; justify-content: center; padding: 10px; }
+        .loading { display: none; position: fixed; inset: 0; background: rgba(255,255,255,0.8); z-index: 100; align-items: center; justify-content: center; }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen p-2">
-    <div id="loadingOverlay" class="loading-overlay">
-        <div class="loading-spinner">
-            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-2"></div>
-            <p class="text-sm">Processing...</p>
-        </div>
-    </div>
-    
-    <div id="notification" class="notification"></div>
+<body class="bg-gray-50 p-2 text-xs">
 
-    <div id="qrModal" class="modal-overlay">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="text-lg font-bold">📱 Scan QR Code - Tambah Data Produksi</h2>
-                <button onclick="closeModal()" class="btn-close">✕ Tutup</button>
-            </div>
-            <div class="modal-body">
-                <div id="scannerSection">
-                    <p class="text-sm text-gray-600 mb-3 text-center">Arahkan kamera ke QR Code coil untuk scan data</p>
-                    <div id="qr-reader" class="qr-scanner-container"></div>
-                    <div class="text-center">
-                        <button onclick="startScan()" class="scan-btn">📷 Mulai Scan</button>
-                        <button onclick="stopScan()" class="btn-secondary ml-2">⏹️ Stop Scan</button>
-                    </div>
-                    <div id="qr-result" class="qr-result" style="display: none;"></div>
-                </div>
-                
-                <div id="formSection" style="display: none;">
-                    <div class="qr-data-display">
-                        <p class="text-xs text-gray-600 mb-2 font-bold">📊 Data dari QR Code:</p>
-                        <div class="qr-data-row">
-                            <span><span class="label">CC NO:</span> <span id="qrCCNO">-</span></span>
-                            <span><span class="label">Spec:</span> <span id="qrSpec">-</span></span>
-                            <span><span class="label">Raw Material Size:</span> <span id="qrRawSize">-</span></span>
-                            <span><span class="label">Weight:</span> <span id="qrWeight">-</span></span>
-                        </div>
-                    </div>
-                    
-                    <form id="productionForm" class="form-grid">
-                        <div class="form-group">
-                            <label>Line *</label>
-                            <select id="formLine" required>
-                                <option value="LV1">LV1</option>
-                                <option value="LM1">LM1</option>
-                                <option value="LM2">LM2</option>
-                                <option value="LM3">LM3</option>
-                                <option value="SL1">SL1</option>
-                                <option value="SL2">SL2</option>
-                                <option value="SL3">SL3</option>
-                                <option value="MS1">MS1</option>
-                                <option value="MS2">MS2</option>
-                                <option value="EMBOSS">EMBOSS</option>
-                                <option value="DS1">DS1</option>
-                                <option value="DS2">DS2</option>
-                                <option value="DS3">DS3</option>
-                                <option value="REWORK">REWORK</option>
-                                <option value="REPACK">REPACK</option>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Customer *</label>
-                            <input type="text" id="formCustomer" required placeholder="Nama Customer">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Actual Width Raw Material *</label>
-                            <input type="text" id="formActualWidth" required placeholder="Contoh: 1220">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Weight Coil Back</label>
-                            <input type="text" id="formWeightCoilBack" placeholder="Berat coil back">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Product Size *</label>
-                            <input type="text" id="formProductSize" required placeholder="Contoh: 1.20 x 1219 x C">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Qty FG *</label>
-                            <input type="number" id="formQtyFG" required placeholder="0" min="0" onchange="calculateQtyTotal()">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Qty NG *</label>
-                            <input type="number" id="formQtyNG" required placeholder="0" min="0" value="0" onchange="calculateQtyTotal()">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Qty Total (Auto)</label>
-                            <input type="number" id="formQtyTotal" readonly style="background: #f3f4f6;">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Total Length *</label>
-                            <input type="text" id="formTotalLength" required placeholder="Contoh: 150 m">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Coil Set Lifter</label>
-                            <input type="time" id="formCoilSetLifter">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Start Proses</label>
-                            <input type="time" id="formStartProses">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>End Proses</label>
-                            <input type="time" id="formEndProses">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Product Keluar dari Mesin</label>
-                            <input type="time" id="formProductKeluar">
-                        </div>
-                        
-                        <div class="section-title full-width">⏱️ Down Time (menit)</div>
-                        
-                        <div class="form-group">
-                            <label>TBM</label>
-                            <input type="number" id="formTBM" placeholder="0" min="0">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Packing Coil Back</label>
-                            <input type="number" id="formPackingCoilBack" placeholder="0" min="0">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Waiting MC</label>
-                            <input type="number" id="formWaitingMC" placeholder="0" min="0">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Waiting Hagumi</label>
-                            <input type="number" id="formWaitingHagumi" placeholder="0" min="0">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Hagumi/Separator</label>
-                            <input type="number" id="formHagumiSeparator" placeholder="0" min="0">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Winder Top/End</label>
-                            <input type="number" id="formWinderTopEnd" placeholder="0" min="0">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Cleaning Mesin</label>
-                            <input type="number" id="formCleaningMesin" placeholder="0" min="0">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Machine Problem</label>
-                            <input type="number" id="formMachineProblem" placeholder="0" min="0">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Other</label>
-                            <input type="number" id="formOther" placeholder="0" min="0">
-                        </div>
-                        
-                        <div class="form-group full-width">
-                            <label>Remark / Catatan</label>
-                            <input type="text" id="formRemark" placeholder="Keterangan tambahan...">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Line Member</label>
-                            <input type="text" id="formLineMember" placeholder="Nama operator">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>OT</label>
-                            <input type="text" id="formOT" placeholder="Over Time">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Report By</label>
-                            <input type="text" id="formReportBy" placeholder="Nama pelapor">
-                        </div>
-                    </form>
-                    
-                    <div class="mt-4 flex justify-end space-x-2">
-                        <button onclick="resetForm()" class="btn-secondary">🔄 Reset</button>
-                        <button onclick="submitForm()" class="btn-primary">💾 Simpan ke Database</button>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <div id="loading" class="loading flex-col">
+        <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-2"></div>
+        <p>Sedang memproses...</p>
     </div>
 
-    <div class="max-w-[100%] mx-auto bg-white shadow-xl border border-black">
-        <div class="p-4 flex justify-between items-start border-b border-black">
-            <div class="w-1/4">
-                <div class="border-b border-black pb-1 mb-1">
-                    <span class="text-xs">Tanggal:</span>
-                    <input type="date" id="reportDate" class="text-xs focus:outline-none">
-                </div>
-                <div class="mt-2">
-                    <button onclick="loadByDate()" class="bg-green-600 hover:bg-green-700 text-white text-[10px] px-3 py-1 rounded mr-1">
-                        Load by Date
-                    </button>
-                    <button onclick="loadByLine()" class="bg-blue-600 hover:bg-blue-700 text-white text-[10px] px-3 py-1 rounded">
-                        Load by Line
-                    </button>
-                </div>
+    <div class="max-w-full bg-white border border-black shadow-sm">
+        <div class="p-4 border-b border-black flex justify-between items-center bg-white">
+            <div class="flex flex-col gap-2">
+                <input type="date" id="filterDate" class="border p-1 rounded">
+                <button onclick="loadData()" class="bg-blue-600 text-white px-4 py-1 rounded">Load Data</button>
             </div>
-            
-            <div class="flex-1 text-center">
-                <h1 class="text-2xl font-bold tracking-widest">PRODUCTION REPORT</h1>
-            </div>
-
-            <div class="w-1/4 flex flex-col items-end">
-                <div class="text-right leading-none">
-                    <span class="text-[8px] italic block">PM 5.5.1/L1</span>
-                    <span class="text-[8px] italic block">Rev. 5</span>
-                </div>
-            </div>
+            <h1 class="text-xl font-bold">PRODUCTION REPORT</h1>
+            <button onclick="openModal()" class="bg-green-600 text-white px-6 py-2 rounded font-bold">+ SCAN QR</button>
         </div>
 
-        <div class="overflow-x-auto custom-scrollbar">
-            <table class="border-collapse table-fixed" style="min-width: 3000px;">
+        <div class="overflow-x-auto" style="max-height: 500px;">
+            <table class="w-full border-collapse" style="min-width: 2500px;">
                 <thead>
                     <tr>
-                        <th class="col-no">NO</th>
-                        <th class="col-line">Line</th>
-                        <th class="col-qrcode">QRCODE</th>
-                        <th class="col-ccno">CC No</th>
-                        <th class="col-cust">Customer</th>
-                        <th class="col-spec">Spec</th>
-                        <th class="col-rawsize">Raw Material<br>Size</th>
-                        <th class="col-actual">Actual Width<br>Raw Material</th>
-                        <th class="col-weight">Weight Raw<br>Material</th>
-                        <th class="col-weightback">Weight Coil<br>Back</th>
-                        <th class="col-prod-size">Product Size</th>
-                        <th class="col-qty">Qty FG</th>
-                        <th class="col-qty">Qty NG</th>
-                        <th class="col-qty-total">Qty Total</th>
-                        <th class="col-len">Total Length</th>
-                        <th class="col-time">Coil Set<br>Lifter</th>
-                        <th class="col-time">Start<br>Proses</th>
-                        <th class="col-time">End Proses</th>
-                        <th class="col-time">Product Keluar<br>dari Mesin</th>
-                        <th class="col-dt">TBM</th>
-                        <th class="col-dt">Packing<br>Coil Back</th>
-                        <th class="col-dt">Waiting<br>MC</th>
-                        <th class="col-dt">Waiting<br>Hagumi</th>
-                        <th class="col-dt">Hagumi/<br>Separator</th>
-                        <th class="col-dt">Winder<br>Top/End</th>
-                        <th class="col-dt">Cleaning<br>Mesin</th>
-                        <th class="col-dt">Machine<br>Problem</th>
-                        <th class="col-dt">Other</th>
-                        <th class="col-remark">Remark</th>
-                        <th class="col-linemember">Line Member</th>
-                        <th class="col-ot">OT</th>
-                        <th class="col-action">Action</th>
+                        <th style="width: 40px;">NO</th>
+                        <th style="width: 60px;">LINE</th>
+                        <th style="width: 150px;">CC NO</th>
+                        <th style="width: 150px;">CUSTOMER</th>
+                        <th style="width: 100px;">SPEC</th>
+                        <th style="width: 120px;">RAW SIZE</th>
+                        <th style="width: 80px;">WEIGHT</th>
+                        <th style="width: 80px;">QTY FG</th>
+                        <th style="width: 80px;">QTY NG</th>
+                        <th style="width: 80px;">TOTAL</th>
+                        <th style="width: 100px;">LEN (m)</th>
+                        <th style="width: 100px;">START</th>
+                        <th style="width: 100px;">END</th>
+                        <th>REMARK</th>
+                        <th>MEMBER</th>
                     </tr>
                 </thead>
                 <tbody id="tableBody"></tbody>
             </table>
         </div>
+    </div>
 
-        <div class="p-2 border-t border-black bg-gray-50 flex justify-between items-center">
-            <div class="flex space-x-2">
-                <button onclick="openAddRowModal()" class="bg-blue-600 hover:bg-blue-700 text-white text-[11px] px-4 py-1.5 rounded shadow-sm uppercase font-bold">
-                    + 📱 Scan QR - Tambah Data
-                </button>
-                <button onclick="clearAll()" class="bg-red-600 hover:bg-red-700 text-white text-[11px] px-4 py-1.5 rounded shadow-sm uppercase font-bold">
-                    🗑️ Clear All
-                </button>
+    <div id="qrModal" class="modal">
+        <div class="bg-white rounded-lg w-full max-w-2xl max-h-screen overflow-y-auto p-4">
+            <div class="flex justify-between items-center border-b pb-2 mb-4">
+                <h2 class="font-bold text-lg">Input Data Produksi</h2>
+                <button onclick="closeModal()" class="text-red-600 font-bold text-xl">&times;</button>
             </div>
-            <div class="text-[10px]">Total Baris: <span id="itemCount" class="font-bold">0</span></div>
-        </div>
+            
+            <div id="reader" class="mb-4"></div>
 
-        <div class="grid grid-cols-1 md:grid-cols-4 border-t border-black divide-x divide-black">
-            <div class="p-2">
-                <span class="text-[10px] font-bold border-b border-black w-full block mb-1">Line Member</span>
-                <div class="grid grid-cols-2 gap-x-2 gap-y-1">
-                    <div class="flex border-b border-gray-300 text-[10px]">1. <input type="text" id="member1" class="w-full focus:outline-none bg-transparent ml-1"></div>
-                    <div class="flex border-b border-gray-300 text-[10px]">6. <input type="text" id="member6" class="w-full focus:outline-none bg-transparent ml-1"></div>
-                    <div class="flex border-b border-gray-300 text-[10px]">2. <input type="text" id="member2" class="w-full focus:outline-none bg-transparent ml-1"></div>
-                    <div class="flex border-b border-gray-300 text-[10px]">7. <input type="text" id="member7" class="w-full focus:outline-none bg-transparent ml-1"></div>
-                    <div class="flex border-b border-gray-300 text-[10px]">3. <input type="text" id="member3" class="w-full focus:outline-none bg-transparent ml-1"></div>
-                    <div class="flex border-b border-gray-300 text-[10px]">8. <input type="text" id="member8" class="w-full focus:outline-none bg-transparent ml-1"></div>
-                    <div class="flex border-b border-gray-300 text-[10px]">4. <input type="text" id="member4" class="w-full focus:outline-none bg-transparent ml-1"></div>
-                    <div class="flex border-b border-gray-300 text-[10px]">9. <input type="text" id="member9" class="w-full focus:outline-none bg-transparent ml-1"></div>
-                    <div class="flex border-b border-gray-300 text-[10px]">5. <input type="text" id="member5" class="w-full focus:outline-none bg-transparent ml-1"></div>
-                    <div class="flex border-b border-gray-300 text-[10px]">10. <input type="text" id="member10" class="w-full focus:outline-none bg-transparent ml-1"></div>
+            <form id="prodForm" class="grid grid-cols-2 gap-3">
+                <div class="col-span-2 bg-blue-50 p-2 rounded border border-blue-200">
+                    <p><strong>QR:</strong> <span id="displayQR">-</span></p>
+                    <input type="hidden" id="in_qrcode">
+                    <input type="hidden" id="in_ccNo">
+                    <input type="hidden" id="in_spec">
+                    <input type="hidden" id="in_rawSize">
+                    <input type="hidden" id="in_weightRM">
                 </div>
-            </div>
 
-            <div class="p-2 flex flex-col">
-                <span class="text-[10px] font-bold mb-4 uppercase text-center w-full">TOTAL PROSES</span>
-                <div class="mt-auto">
-                    <table class="w-full">
-                        <tr><td class="text-[9px] bg-gray-50 px-2 border">Coil / Skid</td><td class="text-center font-normal px-4 border w-24" id="totalCoil">0</td></tr>
-                        <tr><td class="text-[9px] bg-gray-50 px-2 border">Berat (kg)</td><td class="text-center font-normal px-4 border w-24" id="totalWeight">0</td></tr>
-                    </table>
+                <div><label class="block font-bold">Line</label>
+                    <select id="in_line" class="w-full border p-2 rounded">
+                        <option>LV1</option><option>LM1</option><option>SL1</option><option>MS1</option>
+                    </select>
                 </div>
-            </div>
-
-            <div class="p-2 text-[8.5px] leading-tight">
-                <p class="font-bold underline mb-1 italic">Definisi · Rule</p>
-                <p><strong>Down Time:</strong> Jika Loss time terjadi bahkan dengan large uncoiler, maka harap isi setiap kolom.</p>
-                <p><strong>Remark:</strong> Input detail NG proses, loss time, dan alasan lainnya.</p>
-            </div>
-
-            <div class="p-2 flex items-center justify-center">
-                <div class="border border-black w-40 h-20 relative flex items-center justify-center">
-                    <span class="absolute top-0 w-full text-center text-[9px] border-b border-black bg-gray-50 py-0.5 font-bold">Cek Oleh Leader</span>
-                    <span class="text-gray-300 text-[10px]">Tanda Tangan</span>
+                <div><label class="block font-bold">Customer</label><input type="text" id="in_customer" class="w-full border p-2 rounded" required></div>
+                <div><label class="block font-bold">Actual Width RM</label><input type="text" id="in_actualWidth" class="w-full border p-2 rounded"></div>
+                <div><label class="block font-bold">Product Size</label><input type="text" id="in_prodSize" class="w-full border p-2 rounded"></div>
+                <div><label class="block font-bold">Qty FG</label><input type="number" id="in_qtyFG" class="w-full border p-2 rounded" value="0"></div>
+                <div><label class="block font-bold">Qty NG</label><input type="number" id="in_qtyNG" class="w-full border p-2 rounded" value="0"></div>
+                <div><label class="block font-bold">Total Length (m)</label><input type="text" id="in_len" class="w-full border p-2 rounded"></div>
+                <div><label class="block font-bold">Start Process</label><input type="time" id="in_start" class="w-full border p-2 rounded"></div>
+                <div><label class="block font-bold">End Process</label><input type="time" id="in_end" class="w-full border p-2 rounded"></div>
+                <div class="col-span-2"><label class="block font-bold">Remark</label><input type="text" id="in_remark" class="w-full border p-2 rounded"></div>
+                <div><label class="block font-bold">Line Member</label><input type="text" id="in_member" class="w-full border p-2 rounded"></div>
+                <div><label class="block font-bold">Report By</label><input type="text" id="in_reportBy" class="w-full border p-2 rounded"></div>
+                
+                <div class="col-span-2 flex gap-2 mt-4">
+                    <button type="button" onclick="submitData()" class="flex-1 bg-blue-600 text-white py-3 rounded font-bold">SIMPAN DATA</button>
+                    <button type="button" onclick="closeModal()" class="bg-gray-400 text-white px-4 rounded">Batal</button>
                 </div>
-            </div>
+            </form>
         </div>
     </div>
 
     <script>
-        // ==========================================
-        // CONFIGURATION - URL DEPLOYMENT BARU
-        // ==========================================
-        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwxWXOiaP9ro0VtgbmRuAGZ_b6tb6lp_2pdK5Ga-qlNeZe2I0hlakqewIvkUHuyL-ZscQ/exec';
-        
-        let html5QrCode = null;
-        let scannedQRData = null;
-        
-        document.getElementById('reportDate').valueAsDate = new Date();
-        
-        // ==========================================
-        // QR SCANNER FUNCTIONS
-        // ==========================================
-        
-        function openAddRowModal() {
+        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwxWXOiaP9ro0VtgbmRuAGZ_b6tb6lp_2pdK5Ga-qlNeZe2I0hlakqewIvkUHuyL-ZscQ/exec';
+        let scanner = null;
+
+        function openModal() {
             document.getElementById('qrModal').style.display = 'flex';
-            document.getElementById('scannerSection').style.display = 'block';
-            document.getElementById('formSection').style.display = 'none';
-            document.getElementById('qr-result').style.display = 'none';
-            scannedQRData = null;
+            scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+            scanner.render(onScanSuccess);
         }
-        
+
         function closeModal() {
-            stopScan();
+            if(scanner) scanner.clear();
             document.getElementById('qrModal').style.display = 'none';
-            resetForm();
+            document.getElementById('prodForm').reset();
         }
-        
-        function startScan() {
-            html5QrCode = new Html5Qrcode("qr-reader");
-            const config = { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 };
-            html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, onScanError)
-                .catch(err => showNotification('Error starting camera: ' + err, 'error'));
-        }
-        
-        function stopScan() {
-            if (html5QrCode) {
-                html5QrCode.stop().then(() => { html5QrCode = null; }).catch(err => console.error(err));
+
+        function onScanSuccess(text) {
+            const parts = text.split(',');
+            if (parts.length >= 6) {
+                document.getElementById('in_qrcode').value = text;
+                document.getElementById('in_ccNo').value = parts[0];
+                document.getElementById('in_spec').value = parts[1];
+                document.getElementById('in_rawSize').value = parts[2];
+                document.getElementById('in_weightRM').value = parts[5];
+                document.getElementById('displayQR').innerText = parts[0] + " | " + parts[1];
+                scanner.clear();
+            } else {
+                alert("Format QR tidak dikenal!");
             }
         }
-        
-        function onScanSuccess(decodedText) {
-            const qrData = decodedText.split(',');
-            if (qrData.length < 6) {
-                showNotification('Invalid QR Code format', 'error');
-                return;
-            }
-            scannedQRData = {
-                qrcode: decodedText,
-                ccNo: qrData[0].trim(),
-                spec: qrData[1].trim(),
-                rawMaterialSize: qrData[2].trim(),
-                weightRM: qrData[5].trim()
-            };
-            document.getElementById('qr-result').innerHTML = `<strong>✅ Berhasil!</strong><br>${scannedQRData.ccNo} | ${scannedQRData.spec}`;
-            document.getElementById('qr-result').style.display = 'block';
-            stopScan();
-            showFormWithQRData();
-        }
-        
-        function onScanError(err) { console.log(err); }
 
-        function showFormWithQRData() {
-            if (!scannedQRData) return;
-            document.getElementById('qrCCNO').textContent = scannedQRData.ccNo;
-            document.getElementById('qrSpec').textContent = scannedQRData.spec;
-            document.getElementById('qrRawSize').textContent = scannedQRData.rawMaterialSize;
-            document.getElementById('qrWeight').textContent = scannedQRData.weightRM;
-            document.getElementById('scannerSection').style.display = 'none';
-            document.getElementById('formSection').style.display = 'block';
-        }
+        async function submitData() {
+            const loader = document.getElementById('loading');
+            loader.style.display = 'flex';
 
-        function calculateQtyTotal() {
-            const fg = parseInt(document.getElementById('formQtyFG').value) || 0;
-            const ng = parseInt(document.getElementById('formQtyNG').value) || 0;
-            document.getElementById('formQtyTotal').value = fg + ng;
-        }
-
-        function resetForm() {
-            document.getElementById('productionForm').reset();
-            document.getElementById('qr-result').style.display = 'none';
-            scannedQRData = null;
-            document.getElementById('scannerSection').style.display = 'block';
-            document.getElementById('formSection').style.display = 'none';
-        }
-
-        // ==========================================
-        // SUBMIT & FETCH - PERBAIKAN CORS
-        // ==========================================
-        
-        async function submitForm() {
-            if (!scannedQRData) return showNotification('Scan QR dulu', 'error');
-            
-            showLoading(true);
             const payload = {
                 action: 'saveReport',
-                line: document.getElementById('formLine').value,
-                qrcode: scannedQRData.qrcode,
-                ccNo: scannedQRData.ccNo,
-                customer: document.getElementById('formCustomer').value,
-                spec: scannedQRData.spec,
-                rawMaterialSize: scannedQRData.rawMaterialSize,
-                actualWidthRM: document.getElementById('formActualWidth').value,
-                weightRM: scannedQRData.weightRM,
-                weightCoilBack: document.getElementById('formWeightCoilBack').value || '',
-                productSize: document.getElementById('formProductSize').value,
-                qtyFG: document.getElementById('formQtyFG').value,
-                qtyNG: document.getElementById('formQtyNG').value,
-                totalLength: document.getElementById('formTotalLength').value,
-                coilSetLifter: document.getElementById('formCoilSetLifter').value,
-                startProses: document.getElementById('formStartProses').value,
-                endProses: document.getElementById('formEndProses').value,
-                productKeluar: document.getElementById('formProductKeluar').value,
-                tbm: document.getElementById('formTBM').value,
-                packingCoilBack: document.getElementById('formPackingCoilBack').value,
-                waitingMC: document.getElementById('formWaitingMC').value,
-                waitingHagumi: document.getElementById('formWaitingHagumi').value,
-                hagumiSeparator: document.getElementById('formHagumiSeparator').value,
-                winderTopEnd: document.getElementById('formWinderTopEnd').value,
-                cleaningMesin: document.getElementById('formCleaningMesin').value,
-                machineProblem: document.getElementById('formMachineProblem').value,
-                other: document.getElementById('formOther').value,
-                remark: document.getElementById('formRemark').value,
-                lineMember: document.getElementById('formLineMember').value,
-                ot: document.getElementById('formOT').value,
-                reportBy: document.getElementById('formReportBy').value
+                line: document.getElementById('in_line').value,
+                qrcode: document.getElementById('in_qrcode').value,
+                ccNo: document.getElementById('in_ccNo').value,
+                customer: document.getElementById('in_customer').value,
+                spec: document.getElementById('in_spec').value,
+                rawMaterialSize: document.getElementById('in_rawSize').value,
+                actualWidthRM: document.getElementById('in_actualWidth').value,
+                weightRM: document.getElementById('in_weightRM').value,
+                productSize: document.getElementById('in_prodSize').value,
+                qtyFG: document.getElementById('in_qtyFG').value,
+                qtyNG: document.getElementById('in_qtyNG').value,
+                totalLength: document.getElementById('in_len').value,
+                startProses: document.getElementById('in_start').value,
+                endProses: document.getElementById('in_end').value,
+                remark: document.getElementById('in_remark').value,
+                lineMember: document.getElementById('in_member').value,
+                reportBy: document.getElementById('in_reportBy').value
             };
 
             try {
-                // KUNCI: Gunakan text/plain untuk bypass CORS Preflight
-                const response = await fetch(GAS_WEB_APP_URL, {
+                // MENGGUNAKAN text/plain UNTUK MENGHINDARI PREFLIGHT OPTIONS
+                const response = await fetch(WEB_APP_URL, {
                     method: 'POST',
-                    mode: 'no-cors', // Mencegah error redirect di browser tertentu
+                    mode: 'cors', // Ubah kembali ke cors namun Content-Type text/plain
                     headers: { 'Content-Type': 'text/plain' },
                     body: JSON.stringify(payload)
                 });
 
-                showNotification('✅ Data terkirim! Memperbarui tabel...');
-                closeModal();
-                setTimeout(() => loadByDate(), 2000);
-            } catch (error) {
-                showNotification('❌ Error: ' + error.message, 'error');
-            } finally {
-                showLoading(false);
-            }
-        }
-
-        async function loadByDate() {
-            const date = document.getElementById('reportDate').value;
-            if (!date) return;
-            showLoading(true);
-            try {
-                const response = await fetch(`${GAS_WEB_APP_URL}?action=getByDate&date=${date}`);
                 const result = await response.json();
                 if (result.success) {
-                    populateTable(result.data);
-                    showNotification(`✅ Loaded ${result.data.length} records`);
+                    alert('✅ Berhasil Simpan!');
+                    closeModal();
+                    loadData();
+                } else {
+                    alert('❌ Error: ' + result.error);
                 }
-            } catch (error) {
-                showNotification('❌ Gagal memuat data', 'error');
+            } catch (err) {
+                alert('❌ Gagal terhubung ke server. Pastikan deployment diatur ke "Anyone".');
             } finally {
-                showLoading(false);
+                loader.style.display = 'none';
             }
         }
 
-        async function loadByLine() {
-            const line = prompt('Masukkan Line (contoh: LV1):');
-            if (!line) return;
-            showLoading(true);
+        async function loadData() {
+            const date = document.getElementById('filterDate').value;
+            const loader = document.getElementById('loading');
+            loader.style.display = 'flex';
+            
             try {
-                const response = await fetch(`${GAS_WEB_APP_URL}?action=getByLine&line=${line}`);
-                const result = await response.json();
-                if (result.success) populateTable(result.data);
-            } catch (error) {
-                showNotification('❌ Gagal memuat data', 'error');
+                const url = date ? `${WEB_APP_URL}?action=getByDate&date=${date}` : WEB_APP_URL;
+                const resp = await fetch(url);
+                const res = await resp.json();
+                
+                const tbody = document.getElementById('tableBody');
+                tbody.innerHTML = '';
+                
+                res.data.forEach((row, i) => {
+                    const tr = `<tr>
+                        <td class="text-center">${i+1}</td>
+                        <td class="text-center">${row.Line}</td>
+                        <td class="px-2">${row['CC No']}</td>
+                        <td class="px-2">${row.Customer}</td>
+                        <td class="text-center">${row.Spec}</td>
+                        <td class="text-center">${row['Raw Material Size']}</td>
+                        <td class="text-center">${row['Weight RM']}</td>
+                        <td class="text-center">${row['Qty FG']}</td>
+                        <td class="text-center">${row['Qty NG']}</td>
+                        <td class="text-center font-bold">${row['Qty Total']}</td>
+                        <td class="text-center">${row['Total Length']}</td>
+                        <td class="text-center">${row['Start Proses']}</td>
+                        <td class="text-center">${row['End Proses']}</td>
+                        <td class="px-2">${row.Remark}</td>
+                        <td class="px-2">${row['Line Member']}</td>
+                    </tr>`;
+                    tbody.innerHTML += tr;
+                });
+            } catch (err) {
+                console.error(err);
             } finally {
-                showLoading(false);
+                loader.style.display = 'none';
             }
         }
 
-        // ==========================================
-        // UI HELPERS
-        // ==========================================
-        function populateTable(data) {
-            const tbody = document.getElementById('tableBody');
-            tbody.innerHTML = '';
-            data.forEach((record, index) => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td class="text-center">${index + 1}</td>
-                    <td><input type="text" class="table-input" value="${record.Line || ''}"></td>
-                    <td><input type="text" class="table-input" value="${record.QRCODE || ''}"></td>
-                    <td><input type="text" class="table-input" value="${record['CC No'] || ''}"></td>
-                    <td><input type="text" class="table-input px-1" value="${record.Customer || ''}"></td>
-                    <td><input type="text" class="table-input" value="${record.Spec || ''}"></td>
-                    <td><input type="text" class="table-input" value="${record['Raw Material Size'] || ''}"></td>
-                    <td><input type="text" class="table-input" value="${record['Actual Width Raw Material'] || ''}"></td>
-                    <td><input type="text" class="table-input" value="${record['Weight Raw Material'] || ''}"></td>
-                    <td><input type="text" class="table-input" value="${record['Weight Coil Back'] || ''}"></td>
-                    <td><input type="text" class="table-input" value="${record['Product Size'] || ''}"></td>
-                    <td><input type="text" class="table-input" value="${record['Qty FG'] || ''}"></td>
-                    <td><input type="text" class="table-input" value="${record['Qty NG'] || ''}"></td>
-                    <td><input type="text" class="table-input" value="${record['Qty Total'] || ''}"></td>
-                    <td><input type="text" class="table-input" value="${record['Total Length'] || ''}"></td>
-                    <td><input type="text" class="table-input" value="${record['Coil Set Lifter'] || ''}"></td>
-                    <td><input type="text" class="table-input" value="${record['Start Proses'] || ''}"></td>
-                    <td><input type="text" class="table-input" value="${record['End Proses'] || ''}"></td>
-                    <td><input type="text" class="table-input" value="${record['Product Keluar dari Mesin'] || ''}"></td>
-                    <td class="bg-gray-50"><input type="text" class="table-input" value="${record.TBM || ''}"></td>
-                    <td class="bg-gray-50"><input type="text" class="table-input" value="${record['Packing Coil Back'] || ''}"></td>
-                    <td class="bg-gray-50"><input type="text" class="table-input" value="${record['Waiting MC'] || ''}"></td>
-                    <td class="bg-gray-50"><input type="text" class="table-input" value="${record['Waiting Hagumi'] || ''}"></td>
-                    <td class="bg-gray-50"><input type="text" class="table-input" value="${record['Hagumi/Separator'] || ''}"></td>
-                    <td class="bg-gray-50"><input type="text" class="table-input" value="${record['Winder Top/End'] || ''}"></td>
-                    <td class="bg-gray-50"><input type="text" class="table-input" value="${record['Cleaning Mesin'] || ''}"></td>
-                    <td class="bg-gray-50"><input type="text" class="table-input" value="${record['Machine Problem'] || ''}"></td>
-                    <td class="bg-gray-50"><input type="text" class="table-input" value="${record.Other || ''}"></td>
-                    <td><input type="text" class="table-input px-1" value="${record.Remark || ''}"></td>
-                    <td><input type="text" class="table-input" value="${record['Line Member'] || ''}"></td>
-                    <td><input type="text" class="table-input" value="${record.OT || ''}"></td>
-                    <td class="text-center bg-gray-50"><button class="text-red-600 text-[9px] font-bold">HAPUS</button></td>
-                `;
-                tbody.appendChild(row);
-            });
-            updateTotals();
-        }
-
-        function showLoading(s) { document.getElementById('loadingOverlay').style.display = s ? 'flex' : 'none'; }
-        function showNotification(m, t = 'success') {
-            const n = document.getElementById('notification');
-            n.textContent = m; n.className = 'notification ' + t; n.style.display = 'block';
-            setTimeout(() => n.style.display = 'none', 4000);
-        }
-        function updateTotals() {
-            const rows = document.querySelectorAll('#tableBody tr');
-            let tc = 0, tw = 0;
-            rows.forEach(r => {
-                tc += parseFloat(r.cells[13].querySelector('input').value) || 0;
-                tw += parseFloat(r.cells[8].querySelector('input').value) || 0;
-            });
-            document.getElementById('totalCoil').textContent = tc;
-            document.getElementById('totalWeight').textContent = tw.toLocaleString();
-            document.getElementById('itemCount').textContent = rows.length;
-        }
+        // Load data saat pertama buka
+        window.onload = loadData;
     </script>
 </body>
 </html>
