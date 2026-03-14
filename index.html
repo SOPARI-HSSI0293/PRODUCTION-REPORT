@@ -3,43 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Production Report System - QR Scanner</title>
+    <title>Production Report System - Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
         input[type="number"]::-webkit-inner-spin-button,
         input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         .table-input { width: 100%; height: 100%; border: none; padding: 4px; font-size: 11px; }
         .table-input:focus { outline: 2px solid #2563eb; outline-offset: -2px; }
-        .modal-overlay { background-color: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px); }
+        .modal-overlay { background-color: rgba(0, 0, 0, 0.75); backdrop-filter: blur(8px); }
+        .input-group label { display: block; font-weight: 700; font-size: 10px; margin-bottom: 2px; color: #374151; text-transform: uppercase; }
+        .input-group input { width: 100%; border: 1px solid #d1d5db; padding: 6px; border-radius: 4px; font-size: 12px; }
+        .input-group input:focus { border-color: #2563eb; outline: none; ring: 2px #bfdbfe; }
     </style>
 </head>
-<body class="bg-gray-100 text-[11px]">
+<body class="bg-slate-50 text-[11px]">
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
+        const { useState, useEffect, useRef, useMemo } = React;
 
-        // ICONS
-        const PlusIcon = () => (
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-        );
-        const SaveIcon = () => (
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-        );
-        const LoaderIcon = () => (
-            <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-        );
-        const XIcon = () => (
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-        );
+        const PlusIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>;
+        const SaveIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>;
+        const XIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>;
+        const LoaderIcon = () => <svg className="animate-spin" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>;
 
         const App = () => {
+            // URL APPS SCRIPT ANDA
             const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxZ2Q1pF2bgf3DTxI947cd3Lbz_GnrwJ52i_nJY6kREMkP_l7oLonXc6N6ukCJoAj7yhw/exec"; 
 
             const lineOptions = ["LV1", "LM1", "LM2", "LM3", "SL1", "SL2", "SL3", "MS1", "MS2", "EMBOSS", "DS1", "DS2", "DS3", "REWORK", "REPACK"];
@@ -49,7 +44,8 @@
             const [showScanner, setShowScanner] = useState(false);
             const [showFormModal, setShowFormModal] = useState(false);
             
-            const [rows, setRows] = useState([]);
+            // Database State (All records from server/memory)
+            const [allRows, setAllRows] = useState([]);
             const [currentEntry, setCurrentEntry] = useState(null);
             const scannerRef = useRef(null);
 
@@ -61,44 +57,43 @@
 
             const [members, setMembers] = useState(Array(10).fill(''));
 
-            // Initializing scanner logic
+            // Memfilter data berdasarkan Tanggal & Line yang dipilih di Header
+            const filteredRows = useMemo(() => {
+                return allRows.filter(row => {
+                    const rowDate = row.tanggal || header.tanggal; // Gunakan tanggal header jika data baru belum disave ke DB
+                    return rowDate === header.tanggal && row.line === header.line;
+                });
+            }, [allRows, header.tanggal, header.line]);
+
+            // QR Scanner Logic
             useEffect(() => {
                 if (showScanner) {
                     const html5QrCode = new Html5Qrcode("reader");
                     scannerRef.current = html5QrCode;
-                    
                     html5QrCode.start(
                         { facingMode: "environment" },
-                        { fps: 10, qrbox: { width: 250, height: 250 } },
-                        (decodedText) => {
-                            handleScanSuccess(decodedText);
-                        },
-                        (errorMessage) => { /* ignore errors */ }
-                    ).catch(err => console.error("Scanner error:", err));
-
-                    return () => {
-                        if (scannerRef.current) {
-                            scannerRef.current.stop().catch(e => console.error(e));
-                        }
-                    };
+                        { fps: 15, qrbox: 250 },
+                        (text) => handleScanSuccess(text),
+                        () => {}
+                    ).catch(err => console.error(err));
+                    return () => { if (scannerRef.current) scannerRef.current.stop().catch(e => {}); };
                 }
             }, [showScanner]);
 
             const handleScanSuccess = (text) => {
-                // Split by comma: Data 1, 2, 3, ..., 9
                 const parts = text.split(',');
                 if (parts.length < 6) {
-                    alert("Format QR Code tidak valid (minimal 6 data dipisahkan koma)");
+                    alert("QR Code Invalid! Format CSV minimal 6 kolom.");
                     return;
                 }
 
-                // Map data: 1->CCNO, 2->Spec, 3->MC Semi, 6->Weight
-                const newEntry = {
+                // Auto-fill dari QR
+                const entry = {
                     ccno: parts[0]?.trim() || '',
                     spec: parts[1]?.trim() || '',
                     mc_semi: parts[2]?.trim() || '',
                     weight: parts[5]?.trim() || '',
-                    // Default fields
+                    // Fields yang perlu diisi manual
                     customer: '', actual_width: '', product_size: '', qty_fg: '', qty_ng: '', 
                     cut: '', total_length: '', coil_set: '', start_proc: '', end_proc: '', 
                     prod_keluar: '', tbm: '', packing_back: '', waiting_mc: '', 
@@ -106,32 +101,39 @@
                     cleaning: '', machine_prob: '', other: '', line_speed: '', remark: ''
                 };
 
-                setCurrentEntry(newEntry);
+                setCurrentEntry(entry);
                 setShowScanner(false);
                 setShowFormModal(true);
             };
 
-            const confirmEntry = () => {
-                const newId = rows.length > 0 ? Math.max(...rows.map(r => r.id)) + 1 : 1;
-                setRows([...rows, { ...currentEntry, id: newId, no: rows.length + 1 }]);
+            const confirmEntryAndSave = async (shouldSaveToDB) => {
+                const newRow = { 
+                    ...currentEntry, 
+                    id: Date.now(), 
+                    line: header.line, 
+                    tanggal: header.tanggal,
+                    no: filteredRows.length + 1 
+                };
+                
+                setAllRows([...allRows, newRow]);
                 setShowFormModal(false);
                 setCurrentEntry(null);
+
+                if (shouldSaveToDB) {
+                    handleSave([newRow]);
+                }
             };
 
-            const updateRow = (id, field, value) => {
-                setRows(rows.map(row => row.id === id ? { ...row, [field]: value } : row));
-            };
-
-            const handleSave = async () => {
+            const handleSave = async (rowsToSave) => {
                 setIsLoading(true);
                 const payload = {
                     header: header,
                     members: members.filter(m => m.trim() !== ""),
-                    rows: rows
+                    rows: rowsToSave || filteredRows
                 };
 
                 if (payload.rows.length === 0) {
-                    setStatus({ type: 'error', message: 'Belum ada data yang diinput!' });
+                    setStatus({ type: 'error', message: 'Tidak ada data untuk disimpan!' });
                     setIsLoading(false);
                     return;
                 }
@@ -143,252 +145,274 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload)
                     });
-                    setStatus({ type: 'success', message: 'Data berhasil terkirim!' });
-                    setTimeout(() => setStatus({ type: '', message: '' }), 5000);
+                    setStatus({ type: 'success', message: 'Berhasil disimpan ke Database!' });
+                    setTimeout(() => setStatus({ type: '', message: '' }), 3000);
                 } catch (error) {
-                    setStatus({ type: 'error', message: 'Gagal mengirim data.' });
+                    setStatus({ type: 'error', message: 'Koneksi Gagal!' });
                 } finally {
                     setIsLoading(false);
                 }
             };
 
             return (
-                <div className="max-w-[1450px] mx-auto bg-white shadow-lg min-h-screen flex flex-col p-4 relative">
+                <div className="max-w-[1600px] mx-auto bg-white min-h-screen flex flex-col p-4 shadow-sm relative overflow-hidden">
                     
-                    {/* MODAL SCANNER */}
-                    {showScanner && (
-                        <div className="fixed inset-0 z-[100] modal-overlay flex items-center justify-center p-4">
-                            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
-                                <div className="p-4 border-b flex justify-between items-center bg-gray-50">
-                                    <h2 className="text-lg font-bold uppercase tracking-tight">Scan QR Code Produksi</h2>
-                                    <button onClick={() => setShowScanner(false)} className="text-gray-500 hover:text-black">
-                                        <XIcon />
-                                    </button>
-                                </div>
-                                <div id="reader" className="w-full aspect-square bg-black"></div>
-                                <div className="p-4 text-center text-gray-600 italic text-[10px]">
-                                    Arahkan kamera ke QR Code Label Produksi
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* MODAL FORM INPUT SETELAH SCAN */}
-                    {showFormModal && currentEntry && (
-                        <div className="fixed inset-0 z-[100] modal-overlay flex items-center justify-center p-4 overflow-y-auto">
-                            <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl">
-                                <div className="p-4 border-b flex justify-between items-center bg-blue-600 text-white">
-                                    <h2 className="text-lg font-bold uppercase">Lengkapi Data Produksi</h2>
-                                    <button onClick={() => setShowFormModal(false)}><XIcon /></button>
-                                </div>
-                                <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div className="col-span-full bg-gray-100 p-3 rounded grid grid-cols-2 md:grid-cols-4 gap-4 mb-2">
-                                        <div><label className="block font-bold">CCNO</label><p className="text-blue-700 font-bold text-lg">{currentEntry.ccno}</p></div>
-                                        <div><label className="block font-bold">SPEC</label><p className="text-blue-700 font-bold">{currentEntry.spec}</p></div>
-                                        <div><label className="block font-bold">MC/SEMI</label><p className="text-blue-700 font-bold">{currentEntry.mc_semi}</p></div>
-                                        <div><label className="block font-bold">WEIGHT</label><p className="text-blue-700 font-bold text-lg">{currentEntry.weight}</p></div>
-                                    </div>
-                                    
-                                    <div>
-                                        <label className="block font-bold mb-1">Customer</label>
-                                        <input className="w-full border p-2 rounded" type="text" value={currentEntry.customer} onChange={e => setCurrentEntry({...currentEntry, customer: e.target.value})} />
-                                    </div>
-                                    <div>
-                                        <label className="block font-bold mb-1">Product Size</label>
-                                        <input className="w-full border p-2 rounded" type="text" value={currentEntry.product_size} onChange={e => setCurrentEntry({...currentEntry, product_size: e.target.value})} />
-                                    </div>
-                                    <div>
-                                        <label className="block font-bold mb-1">Width MC</label>
-                                        <input className="w-full border p-2 rounded" type="text" value={currentEntry.actual_width} onChange={e => setCurrentEntry({...currentEntry, actual_width: e.target.value})} />
-                                    </div>
-                                    <div>
-                                        <label className="block font-bold mb-1">Qty FG</label>
-                                        <input className="w-full border p-2 rounded" type="number" value={currentEntry.qty_fg} onChange={e => setCurrentEntry({...currentEntry, qty_fg: e.target.value})} />
-                                    </div>
-                                    <div>
-                                        <label className="block font-bold mb-1">Qty NG</label>
-                                        <input className="w-full border p-2 rounded" type="number" value={currentEntry.qty_ng} onChange={e => setCurrentEntry({...currentEntry, qty_ng: e.target.value})} />
-                                    </div>
-                                    <div>
-                                        <label className="block font-bold mb-1">Total Length</label>
-                                        <input className="w-full border p-2 rounded" type="text" value={currentEntry.total_length} onChange={e => setCurrentEntry({...currentEntry, total_length: e.target.value})} />
-                                    </div>
-                                    <div className="col-span-full border-t pt-4 flex justify-end gap-3">
-                                        <button onClick={() => setShowFormModal(false)} className="px-6 py-2 border rounded hover:bg-gray-50 uppercase font-bold">Batal</button>
-                                        <button onClick={confirmEntry} className="px-10 py-2 bg-green-600 text-white rounded hover:bg-green-700 uppercase font-bold shadow-lg">Tambahkan Ke Laporan</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* STATUS NOTIFICATION */}
+                    {/* NOTIFIKASI */}
                     {status.message && (
-                        <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[150] px-6 py-3 rounded-md shadow-2xl text-white font-bold animate-bounce ${status.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
+                        <div className={`fixed top-6 left-1/2 -translate-x-1/2 z-[200] px-8 py-3 rounded-full shadow-2xl text-white font-bold animate-fade-in-down ${status.type === 'success' ? 'bg-emerald-500' : 'bg-rose-500'}`}>
                             {status.message}
                         </div>
                     )}
 
-                    {/* HEADER SECTION */}
-                    <div className="flex justify-between items-start border-b-2 border-black pb-2 mb-4">
-                        <div className="w-1/3">
-                            <div className="flex items-center gap-2 mb-2">
-                                <span className="font-bold border-b border-black w-20 uppercase">Tanggal</span>
-                                <input type="date" className="border-none p-0 focus:ring-0 text-sm" value={header.tanggal} onChange={(e) => setHeader({...header, tanggal: e.target.value})} />
+                    {/* MODAL SCANNER */}
+                    {showScanner && (
+                        <div className="fixed inset-0 z-[100] modal-overlay flex items-center justify-center p-4">
+                            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+                                <div className="p-4 border-b flex justify-between items-center bg-slate-50">
+                                    <h2 className="text-sm font-black uppercase tracking-widest text-slate-700">Scan Label Produksi</h2>
+                                    <button onClick={() => setShowScanner(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><XIcon /></button>
+                                </div>
+                                <div id="reader" className="w-full aspect-square bg-black"></div>
+                                <div className="p-4 text-center text-slate-400 italic text-[10px]">Arahkan kamera ke QR Code di Label</div>
                             </div>
                         </div>
-                        <div className="w-1/3 text-center">
-                            <h1 className="text-2xl font-black underline tracking-widest uppercase">Production Report</h1>
+                    )}
+
+                    {/* MODAL INPUT LENGKAP */}
+                    {showFormModal && currentEntry && (
+                        <div className="fixed inset-0 z-[100] modal-overlay flex items-center justify-center p-4">
+                            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
+                                <div className="p-4 bg-blue-700 text-white flex justify-between items-center">
+                                    <h2 className="text-lg font-black uppercase tracking-tight">Data Input: {header.line} - {header.tanggal}</h2>
+                                    <button onClick={() => setShowFormModal(false)}><XIcon /></button>
+                                </div>
+                                
+                                <div className="flex-grow overflow-y-auto p-6">
+                                    {/* Kolom dari QR (Read Only) */}
+                                    <div className="grid grid-cols-4 gap-4 bg-blue-50 p-4 rounded-xl mb-6 border border-blue-100">
+                                        <div className="input-group"><label>CCNO</label><div className="font-bold text-blue-800 py-1 text-lg">{currentEntry.ccno}</div></div>
+                                        <div className="input-group"><label>SPEC</label><div className="font-bold text-blue-800 py-1">{currentEntry.spec}</div></div>
+                                        <div className="input-group"><label>MC/SEMI</label><div className="font-bold text-blue-800 py-1">{currentEntry.mc_semi}</div></div>
+                                        <div className="input-group"><label>WEIGHT (KG)</label><div className="font-bold text-blue-800 py-1 text-lg">{currentEntry.weight}</div></div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                        <div className="md:col-span-4 font-black border-b border-slate-200 pb-1 text-blue-600 text-xs mt-2 uppercase">Informasi Produk</div>
+                                        <div className="input-group"><label>Customer</label><input type="text" value={currentEntry.customer} onChange={e => setCurrentEntry({...currentEntry, customer: e.target.value})} /></div>
+                                        <div className="input-group"><label>Product Size</label><input type="text" value={currentEntry.product_size} onChange={e => setCurrentEntry({...currentEntry, product_size: e.target.value})} /></div>
+                                        <div className="input-group"><label>Actual Width</label><input type="text" value={currentEntry.actual_width} onChange={e => setCurrentEntry({...currentEntry, actual_width: e.target.value})} /></div>
+                                        <div className="input-group"><label>Qty FG</label><input type="number" value={currentEntry.qty_fg} onChange={e => setCurrentEntry({...currentEntry, qty_fg: e.target.value})} /></div>
+                                        <div className="input-group"><label>Qty NG</label><input type="number" value={currentEntry.qty_ng} onChange={e => setCurrentEntry({...currentEntry, qty_ng: e.target.value})} /></div>
+                                        <div className="input-group"><label>Cut Skid</label><input type="text" value={currentEntry.cut} onChange={e => setCurrentEntry({...currentEntry, cut: e.target.value})} /></div>
+                                        <div className="input-group"><label>Total Length</label><input type="text" value={currentEntry.total_length} onChange={e => setCurrentEntry({...currentEntry, total_length: e.target.value})} /></div>
+                                        <div className="input-group"><label>Coil Set</label><input type="text" value={currentEntry.coil_set} onChange={e => setCurrentEntry({...currentEntry, coil_set: e.target.value})} /></div>
+                                        
+                                        <div className="md:col-span-4 font-black border-b border-slate-200 pb-1 text-blue-600 text-xs mt-4 uppercase">Waktu Proses</div>
+                                        <div className="input-group"><label>Start</label><input type="time" value={currentEntry.start_proc} onChange={e => setCurrentEntry({...currentEntry, start_proc: e.target.value})} /></div>
+                                        <div className="input-group"><label>End</label><input type="time" value={currentEntry.end_proc} onChange={e => setCurrentEntry({...currentEntry, end_proc: e.target.value})} /></div>
+                                        <div className="input-group"><label>Keluar Mesin</label><input type="time" value={currentEntry.prod_keluar} onChange={e => setCurrentEntry({...currentEntry, prod_keluar: e.target.value})} /></div>
+                                        <div className="input-group"><label>Speed (m/min)</label><input type="text" value={currentEntry.line_speed} onChange={e => setCurrentEntry({...currentEntry, line_speed: e.target.value})} /></div>
+
+                                        <div className="md:col-span-4 font-black border-b border-slate-200 pb-1 text-blue-600 text-xs mt-4 uppercase">Down Time (Menit)</div>
+                                        <div className="input-group"><label>TBM</label><input type="number" value={currentEntry.tbm} onChange={e => setCurrentEntry({...currentEntry, tbm: e.target.value})} /></div>
+                                        <div className="input-group"><label>Pack Back (Jam)</label><input type="time" value={currentEntry.packing_back} onChange={e => setCurrentEntry({...currentEntry, packing_back: e.target.value})} /></div>
+                                        <div className="input-group"><label>Wait MC</label><input type="number" value={currentEntry.waiting_mc} onChange={e => setCurrentEntry({...currentEntry, waiting_mc: e.target.value})} /></div>
+                                        <div className="input-group"><label>Wait Hagumi</label><input type="number" value={currentEntry.waiting_hagumi} onChange={e => setCurrentEntry({...currentEntry, waiting_hagumi: e.target.value})} /></div>
+                                        <div className="input-group"><label>Wait Crane</label><input type="number" value={currentEntry.waiting_crane} onChange={e => setCurrentEntry({...currentEntry, waiting_crane: e.target.value})} /></div>
+                                        <div className="input-group"><label>Hag/Sep</label><input type="number" value={currentEntry.hagumi_separator} onChange={e => setCurrentEntry({...currentEntry, hagumi_separator: e.target.value})} /></div>
+                                        <div className="input-group"><label>Winder</label><input type="number" value={currentEntry.winder} onChange={e => setCurrentEntry({...currentEntry, winder: e.target.value})} /></div>
+                                        <div className="input-group"><label>Cleaning</label><input type="number" value={currentEntry.cleaning} onChange={e => setCurrentEntry({...currentEntry, cleaning: e.target.value})} /></div>
+                                        <div className="input-group"><label>Mc Prob</label><input type="number" value={currentEntry.machine_prob} onChange={e => setCurrentEntry({...currentEntry, machine_prob: e.target.value})} /></div>
+                                        <div className="input-group"><label>Other</label><input type="number" value={currentEntry.other} onChange={e => setCurrentEntry({...currentEntry, other: e.target.value})} /></div>
+                                        
+                                        <div className="md:col-span-4 input-group mt-2">
+                                            <label>Remark / Catatan Tambahan</label>
+                                            <input type="text" placeholder="Misal: Material NG dari supplier..." value={currentEntry.remark} onChange={e => setCurrentEntry({...currentEntry, remark: e.target.value})} />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="p-4 border-t bg-slate-50 flex justify-end gap-3">
+                                    <button onClick={() => setShowFormModal(false)} className="px-6 py-2 border border-slate-300 rounded-lg hover:bg-white font-bold uppercase text-slate-500">Batal</button>
+                                    <button onClick={() => confirmEntryAndSave(false)} className="px-6 py-2 bg-slate-700 text-white rounded-lg hover:bg-black font-bold uppercase shadow">Tambah ke Tabel</button>
+                                    <button onClick={() => confirmEntryAndSave(true)} className="px-8 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-bold uppercase shadow-lg flex items-center gap-2">
+                                        <SaveIcon /> Simpan ke DB
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                        <div className="w-1/3 flex flex-col items-end gap-2 text-sm uppercase">
-                            <div className="flex gap-4">
-                                <div className="flex items-center gap-2 border border-black px-2 py-1 bg-white">
-                                    <span className="font-bold">LINE</span>
-                                    <select className="border-none bg-transparent focus:ring-0 font-bold p-0 pr-6 text-sm cursor-pointer" value={header.line} onChange={(e) => setHeader({...header, line: e.target.value})}>
-                                        {lineOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                                    </select>
-                                </div>
-                                <div className="flex items-center gap-2 border border-black px-4 py-1">
-                                    <span className="font-bold">OT</span>
-                                    <input type="text" className="w-16 border-none text-center focus:ring-0 p-0 uppercase" value={header.ot} onChange={(e) => setHeader({...header, ot: e.target.value})} placeholder="..." />
-                                </div>
+                    )}
+
+                    {/* HEADER */}
+                    <div className="flex justify-between items-center mb-6 pb-4 border-b-2 border-slate-900">
+                        <div className="flex flex-col gap-1">
+                            <h1 className="text-3xl font-[900] tracking-tighter uppercase text-slate-900 leading-none">Production Report</h1>
+                            <p className="text-[10px] text-slate-500 font-bold tracking-[0.2em]">SINKRONISASI REAL-TIME DATABASE</p>
+                        </div>
+                        
+                        <div className="flex gap-4">
+                            <div className="bg-slate-100 p-2 rounded-lg flex flex-col">
+                                <span className="text-[9px] font-black text-slate-400 uppercase">Pilih Line</span>
+                                <select className="bg-transparent font-black text-blue-700 text-lg outline-none cursor-pointer" value={header.line} onChange={(e) => setHeader({...header, line: e.target.value})}>
+                                    {lineOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                </select>
+                            </div>
+                            <div className="bg-slate-100 p-2 rounded-lg flex flex-col">
+                                <span className="text-[9px] font-black text-slate-400 uppercase">Pilih Tanggal</span>
+                                <input type="date" className="bg-transparent font-black text-blue-700 text-lg outline-none cursor-pointer" value={header.tanggal} onChange={(e) => setHeader({...header, tanggal: e.target.value})} />
+                            </div>
+                            <div className="bg-slate-100 p-2 rounded-lg flex flex-col w-24">
+                                <span className="text-[9px] font-black text-slate-400 uppercase">OT</span>
+                                <input type="text" className="bg-transparent font-black text-blue-700 text-lg outline-none uppercase" value={header.ot} onChange={(e) => setHeader({...header, ot: e.target.value})} placeholder="..." />
                             </div>
                         </div>
                     </div>
 
-                    {/* TABLE SECTION */}
-                    <div className="flex-grow overflow-auto border border-black">
+                    {/* MAIN TABLE */}
+                    <div className="flex-grow overflow-auto border rounded-xl border-slate-300 shadow-inner bg-white">
                         <table className="w-full border-collapse table-fixed min-w-[2100px] uppercase">
-                            <thead className="sticky top-0 bg-white z-10 text-center">
+                            <thead className="sticky top-0 z-20 bg-slate-900 text-white text-[10px]">
                                 <tr>
-                                    <th rowSpan="2" className="border border-black w-10 bg-gray-100">NO</th>
-                                    <th rowSpan="2" className="border border-black w-28">CCNO</th>
-                                    <th rowSpan="2" className="border border-black w-32">Customer</th>
-                                    <th rowSpan="2" className="border border-black w-24">Spec</th>
-                                    <th rowSpan="2" className="border border-black w-24 text-[9px]">MC/Semi Size</th>
-                                    <th rowSpan="2" className="border border-black w-16 text-[9px]">Width MC</th>
-                                    <th rowSpan="2" className="border border-black w-20">Weight</th>
-                                    <th rowSpan="2" className="border border-black w-24 text-[9px]">Product Size</th>
-                                    <th rowSpan="2" className="border border-black w-12 text-[9px]">Qty FG</th>
-                                    <th rowSpan="2" className="border border-black w-12 text-[9px]">Qty NG</th>
-                                    <th rowSpan="2" className="border border-black w-14 text-[9px]">Cut Skid</th>
-                                    <th rowSpan="2" className="border border-black w-16 text-[9px]">Length</th>
-                                    <th rowSpan="2" className="border border-black w-16 text-[9px]">Coil Set</th>
-                                    <th rowSpan="2" className="border border-black w-16 text-[9px]">Start</th>
-                                    <th rowSpan="2" className="border border-black w-16 text-[9px]">End</th>
-                                    <th rowSpan="2" className="border border-black w-16 text-[9px]">Keluar Mesin</th>
-                                    <th colSpan="10" className="border border-black bg-gray-100 h-6">Down Time</th>
-                                    <th rowSpan="2" className="border border-black w-14 text-[9px]">Speed</th>
-                                    <th rowSpan="2" className="border border-black w-40">Remark</th>
+                                    <th rowSpan="2" className="border border-slate-700 w-10">NO</th>
+                                    <th rowSpan="2" className="border border-slate-700 w-28">CCNO</th>
+                                    <th rowSpan="2" className="border border-slate-700 w-40">Customer</th>
+                                    <th rowSpan="2" className="border border-slate-700 w-28">Spec</th>
+                                    <th rowSpan="2" className="border border-slate-700 w-24">MC/Semi</th>
+                                    <th rowSpan="2" className="border border-slate-700 w-16">Width</th>
+                                    <th rowSpan="2" className="border border-slate-700 w-24">Weight</th>
+                                    <th rowSpan="2" className="border border-slate-700 w-24">Prod Size</th>
+                                    <th rowSpan="2" className="border border-slate-700 w-14">FG</th>
+                                    <th rowSpan="2" className="border border-slate-700 w-14">NG</th>
+                                    <th rowSpan="2" className="border border-slate-700 w-14">Cut</th>
+                                    <th rowSpan="2" className="border border-slate-700 w-16">Length</th>
+                                    <th rowSpan="2" className="border border-slate-700 w-16">CoilSet</th>
+                                    <th rowSpan="2" className="border border-slate-700 w-16">Start</th>
+                                    <th rowSpan="2" className="border border-slate-700 w-16">End</th>
+                                    <th rowSpan="2" className="border border-slate-700 w-16">Out</th>
+                                    <th colSpan="10" className="border border-slate-700 bg-slate-800 text-blue-300 h-6">Down Time (Minutes)</th>
+                                    <th rowSpan="2" className="border border-slate-700 w-14">Speed</th>
+                                    <th rowSpan="2" className="border border-slate-700 w-48">Remark</th>
                                 </tr>
-                                <tr className="h-10 text-[8px] bg-gray-50">
-                                    <th className="border border-black w-14">TBM</th>
-                                    <th className="border border-black w-20">Pack Back</th>
-                                    <th className="border border-black w-12">Wait MC</th>
-                                    <th className="border border-black w-12">Wait Hag</th>
-                                    <th className="border border-black w-12">Wait Cra</th>
-                                    <th className="border border-black w-16">Hag/Sep</th>
-                                    <th className="border border-black w-14">Winder</th>
-                                    <th className="border border-black w-12">Clean</th>
-                                    <th className="border border-black w-14">Mc Prob</th>
-                                    <th className="border border-black w-12">Other</th>
+                                <tr className="h-8 text-[9px] bg-slate-800">
+                                    <th className="border border-slate-700">TBM</th>
+                                    <th className="border border-slate-700">P.Back</th>
+                                    <th className="border border-slate-700">WaitMc</th>
+                                    <th className="border border-slate-700">WaitHag</th>
+                                    <th className="border border-slate-700">WaitCra</th>
+                                    <th className="border border-slate-700">HagSep</th>
+                                    <th className="border border-slate-700">Winder</th>
+                                    <th className="border border-slate-700">Clean</th>
+                                    <th className="border border-slate-700">McProb</th>
+                                    <th className="border border-slate-700">Other</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {rows.length === 0 && (
+                                {filteredRows.length === 0 ? (
                                     <tr>
-                                        <td colSpan="28" className="h-20 text-center text-gray-400 italic font-bold">Klik tombol (+) untuk scan label dan menambah data</td>
+                                        <td colSpan="28" className="h-32 text-center text-slate-300 font-black text-lg">TIDAK ADA DATA UNTUK {header.line} PADA {header.tanggal}</td>
                                     </tr>
+                                ) : (
+                                    filteredRows.map((row, idx) => (
+                                        <tr key={row.id} className="h-8 hover:bg-blue-50/50 border-b border-slate-100 transition-colors">
+                                            <td className="border border-slate-200 text-center font-black bg-slate-50">{idx + 1}</td>
+                                            <td className="border border-slate-200 px-2 font-bold text-blue-700">{row.ccno}</td>
+                                            <td className="border border-slate-200 px-2 truncate">{row.customer}</td>
+                                            <td className="border border-slate-200 px-2 text-center">{row.spec}</td>
+                                            <td className="border border-slate-200 px-2 text-center">{row.mc_semi}</td>
+                                            <td className="border border-slate-200 text-center">{row.actual_width}</td>
+                                            <td className="border border-slate-200 text-center font-bold">{row.weight}</td>
+                                            <td className="border border-slate-200 px-1 text-center">{row.product_size}</td>
+                                            <td className="border border-slate-200 text-center bg-emerald-50 font-bold">{row.qty_fg}</td>
+                                            <td className="border border-slate-200 text-center bg-rose-50 text-rose-600">{row.qty_ng}</td>
+                                            <td className="border border-slate-200 text-center">{row.cut}</td>
+                                            <td className="border border-slate-200 text-center">{row.total_length}</td>
+                                            <td className="border border-slate-200 text-center">{row.coil_set}</td>
+                                            <td className="border border-slate-200 text-center text-slate-500">{row.start_proc}</td>
+                                            <td className="border border-slate-200 text-center text-slate-500">{row.end_proc}</td>
+                                            <td className="border border-slate-200 text-center font-bold text-slate-700">{row.prod_keluar}</td>
+                                            {[ 'tbm', 'packing_back', 'waiting_mc', 'waiting_hagumi', 'waiting_crane', 'hagumi_separator', 'winder', 'cleaning', 'machine_prob', 'other' ].map(f => (
+                                                <td key={f} className={`border border-slate-200 text-center ${row[f] > 0 ? 'font-bold text-rose-500 bg-rose-50/30' : 'text-slate-300'}`}>{row[f] || '-'}</td>
+                                            ))}
+                                            <td className="border border-slate-200 text-center">{row.line_speed}</td>
+                                            <td className="border border-slate-200 px-2 italic text-slate-400 truncate">{row.remark}</td>
+                                        </tr>
+                                    ))
                                 )}
-                                {rows.map((row) => (
-                                    <tr key={row.id} className="h-8 hover:bg-blue-50 transition-colors">
-                                        <td className="border border-black text-center bg-gray-50 font-bold">{row.no}</td>
-                                        {[ 'ccno', 'customer', 'spec', 'mc_semi', 'actual_width', 'weight', 'product_size', 'qty_fg', 'qty_ng', 'cut', 'total_length', 'coil_set' ].map(field => (
-                                            <td key={field} className="border border-black p-0">
-                                                <input type="text" className="table-input" value={row[field]} onChange={(e) => updateRow(row.id, field, e.target.value)} />
-                                            </td>
-                                        ))}
-                                        {[ 'start_proc', 'end_proc', 'prod_keluar' ].map(field => (
-                                            <td key={field} className="border border-black p-0">
-                                                <input type="time" className="table-input text-[9px]" value={row[field]} onChange={(e) => updateRow(row.id, field, e.target.value)} />
-                                            </td>
-                                        ))}
-                                        <td className="border border-black p-0"><input type="number" className="table-input" value={row.tbm} onChange={(e) => updateRow(row.id, 'tbm', e.target.value)} /></td>
-                                        <td className="border border-black p-0"><input type="time" className="table-input text-[9px]" value={row.packing_back} onChange={(e) => updateRow(row.id, 'packing_back', e.target.value)} /></td>
-                                        {[ 'waiting_mc', 'waiting_hagumi', 'waiting_crane', 'hagumi_separator', 'winder', 'cleaning', 'machine_prob', 'other' ].map(field => (
-                                            <td key={field} className="border border-black p-0">
-                                                <input type="number" className="table-input" value={row[field]} onChange={(e) => updateRow(row.id, field, e.target.value)} />
-                                            </td>
-                                        ))}
-                                        <td className="border border-black p-0"><input type="text" className="table-input" value={row.line_speed} onChange={(e) => updateRow(row.id, 'line_speed', e.target.value)} /></td>
-                                        <td className="border border-black p-0"><input type="text" className="table-input" value={row.remark} onChange={(e) => updateRow(row.id, 'remark', e.target.value)} /></td>
-                                    </tr>
-                                ))}
                             </tbody>
                         </table>
                     </div>
 
-                    {/* FOOTER SECTION */}
-                    <div className="mt-4 grid grid-cols-12 gap-4 h-48 overflow-hidden uppercase">
-                        <div className="col-span-4 border border-black flex flex-col h-full">
-                            <div className="bg-gray-100 border-b border-black text-center font-bold text-sm py-1">Line Member</div>
-                            <div className="grid grid-cols-2 flex-grow overflow-hidden">
-                                <div className="border-r border-black overflow-y-auto">
+                    {/* FOOTER STATS */}
+                    <div className="mt-6 grid grid-cols-12 gap-6 h-48">
+                        {/* LINE MEMBER */}
+                        <div className="col-span-5 border-2 border-slate-900 rounded-xl overflow-hidden flex flex-col bg-white">
+                            <div className="bg-slate-900 text-white text-[10px] font-black py-1 px-4 flex justify-between uppercase">
+                                <span>Daftar Line Member</span>
+                                <span>{header.line}</span>
+                            </div>
+                            <div className="grid grid-cols-2 flex-grow">
+                                <div className="border-r border-slate-200">
                                     {[1,2,3,4,5].map(i => (
-                                        <div key={i} className="flex border-b border-black last:border-0 h-1/5 items-center">
-                                            <span className="w-8 text-center border-r border-black h-full flex items-center justify-center font-bold bg-gray-50">{i}</span>
-                                            <input type="text" className="flex-grow h-full border-none p-1 focus:ring-2 focus:ring-inset focus:ring-blue-600 outline-none" value={members[i-1]} onChange={(e) => {let n=[...members]; n[i-1]=e.target.value; setMembers(n)}} />
+                                        <div key={i} className="flex border-b border-slate-100 last:border-0 h-1/5 items-center px-2">
+                                            <span className="w-6 font-black text-slate-300 italic">{i}</span>
+                                            <input type="text" className="w-full bg-transparent outline-none font-bold text-slate-700" value={members[i-1]} onChange={(e) => {let n=[...members]; n[i-1]=e.target.value; setMembers(n)}} placeholder="..." />
                                         </div>
                                     ))}
                                 </div>
-                                <div className="overflow-y-auto">
+                                <div>
                                     {[6,7,8,9,10].map(i => (
-                                        <div key={i} className="flex border-b border-black last:border-0 h-1/5 items-center">
-                                            <span className="w-8 text-center border-r border-black h-full flex items-center justify-center font-bold bg-gray-50">{i}</span>
-                                            <input type="text" className="flex-grow h-full border-none p-1 focus:ring-2 focus:ring-inset focus:ring-blue-600 outline-none" value={members[i-1]} onChange={(e) => {let n=[...members]; n[i-1]=e.target.value; setMembers(n)}} />
+                                        <div key={i} className="flex border-b border-slate-100 last:border-0 h-1/5 items-center px-2">
+                                            <span className="w-6 font-black text-slate-300 italic">{i}</span>
+                                            <input type="text" className="w-full bg-transparent outline-none font-bold text-slate-700" value={members[i-1]} onChange={(e) => {let n=[...members]; n[i-1]=e.target.value; setMembers(n)}} placeholder="..." />
                                         </div>
                                     ))}
                                 </div>
                             </div>
                         </div>
 
-                        <div className="col-span-3 border border-black flex flex-col justify-end">
-                            <div className="text-right pr-2 font-bold mb-1">Total Proses</div>
-                            <div className="grid grid-rows-2 h-16 border-t border-black">
-                                <div className="flex border-b border-black h-8">
-                                    <div className="w-1/2 bg-gray-100 border-r border-black flex items-center justify-center font-bold">Coil/Skid</div>
-                                    <div className="w-1/2 flex items-center justify-center font-mono text-sm">{rows.reduce((a, c) => a + (parseInt(c.qty_fg) || 0), 0)}</div>
-                                </div>
-                                <div className="flex h-8">
-                                    <div className="w-1/2 bg-gray-100 border-r border-black flex items-center justify-center font-bold">Berat</div>
-                                    <div className="w-1/2 flex items-center justify-center font-mono text-sm">{rows.reduce((a, c) => a + (parseFloat(c.weight) || 0), 0).toFixed(2)}</div>
-                                </div>
+                        {/* SUMMARY */}
+                        <div className="col-span-3 flex flex-col justify-center gap-4 px-4 bg-slate-900 rounded-xl text-white border-4 border-slate-800 shadow-xl">
+                            <div className="flex justify-between items-center border-b border-slate-700 pb-2">
+                                <span className="text-xs font-black uppercase text-slate-400">Total FG (Coil/Skid)</span>
+                                <span className="text-3xl font-black text-emerald-400">{filteredRows.reduce((a, c) => a + (parseInt(c.qty_fg) || 0), 0)}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <span className="text-xs font-black uppercase text-slate-400">Total Berat (KG)</span>
+                                <span className="text-3xl font-black text-blue-400">{filteredRows.reduce((a, c) => a + (parseFloat(c.weight) || 0), 0).toLocaleString()}</span>
                             </div>
                         </div>
 
-                        <div className="col-span-5 border border-black bg-blue-50/40 p-2 text-[10px] flex flex-col justify-between italic">
+                        {/* INFO / GUIDE */}
+                        <div className="col-span-4 bg-blue-50 border-2 border-blue-200 rounded-xl p-4 flex flex-col justify-between italic">
                             <div>
-                                <p className="font-black underline mb-1">PROSEDUR SCAN QR</p>
-                                <ol className="list-decimal ml-3 leading-tight">
-                                    <li>Klik tombol (+) biru di bawah.</li>
-                                    <li>Arahkan kamera ke QR Label (Data CSV 9 kolom).</li>
-                                    <li>Data CCNO, Spec, MC/Semi, Weight akan terisi otomatis.</li>
-                                    <li>Lengkapi sisa data pada form pop-up, lalu simpan ke tabel.</li>
-                                </ol>
+                                <h3 className="font-black text-blue-900 underline mb-2 uppercase text-xs">Petunjuk Penggunaan</h3>
+                                <ul className="text-[10px] space-y-1 text-blue-800 font-bold uppercase">
+                                    <li>1. Gunakan Filter Tanggal & Line untuk melihat history.</li>
+                                    <li>2. Tombol (+) memicu scan QR Label Material.</li>
+                                    <li>3. Isi Form pop-up secara lengkap sebelum menyimpan.</li>
+                                    <li>4. Data di Form pop-up otomatis masuk ke Database.</li>
+                                </ul>
                             </div>
-                            <p className="text-[8px] opacity-70 uppercase font-bold text-blue-900">Digital Production Report v2.0</p>
+                            <div className="flex justify-between items-end border-t border-blue-200 pt-2 mt-2">
+                                <span className="text-[9px] font-black text-blue-300">SYSTEM VERSION 2.1 PRO</span>
+                                <div className="flex gap-1">
+                                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                                    <span className="text-[8px] font-black text-emerald-600">SERVER ONLINE</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    {/* FLOATING ACTION BUTTONS */}
-                    <div className="fixed bottom-6 right-6 flex flex-col gap-3">
-                        <button onClick={() => setShowScanner(true)} className="bg-blue-600 text-white p-4 rounded-full shadow-2xl hover:bg-blue-700 active:scale-90 transition-all group flex items-center gap-2">
+                    {/* FAB */}
+                    <div className="fixed bottom-8 right-8 flex flex-col gap-4">
+                        <button onClick={() => setShowScanner(true)} className="bg-blue-600 text-white w-16 h-16 rounded-full shadow-2xl hover:bg-blue-700 hover:scale-110 active:scale-95 transition-all flex items-center justify-center group relative">
                             <PlusIcon />
-                            <span className="hidden group-hover:inline pr-2 font-bold">SCAN QR</span>
+                            <span className="absolute right-full mr-4 bg-blue-900 text-white text-[10px] font-black py-2 px-4 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">SCAN BARU</span>
                         </button>
-                        <button onClick={handleSave} disabled={isLoading} className={`${isLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'} text-white p-4 rounded-full shadow-2xl active:scale-90 transition-all flex items-center gap-2 group`}>
+                        
+                        <button onClick={() => handleSave()} disabled={isLoading} className={`${isLoading ? 'bg-slate-400 rotate-180' : 'bg-slate-900 hover:bg-black hover:scale-110'} text-white w-16 h-16 rounded-full shadow-2xl active:scale-95 transition-all flex items-center justify-center group relative`}>
                             {isLoading ? <LoaderIcon /> : <SaveIcon />}
-                            <span className="hidden group-hover:inline pr-2 font-bold">SAVE ALL</span>
+                            <span className="absolute right-full mr-4 bg-slate-900 text-white text-[10px] font-black py-2 px-4 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">SIMPAN SEMUA</span>
                         </button>
                     </div>
                 </div>
