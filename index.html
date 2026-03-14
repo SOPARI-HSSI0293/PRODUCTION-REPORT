@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Production Report System - QR Scanner</title>
+    <title>Production Report System</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://unpkg.com/html5-qrcode"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
@@ -16,16 +15,15 @@
         input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         .table-input { width: 100%; height: 100%; border: none; padding: 4px; font-size: 11px; }
         .table-input:focus { outline: 2px solid #2563eb; outline-offset: -2px; }
-        .modal-overlay { background-color: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px); }
     </style>
 </head>
 <body class="bg-gray-100 text-[11px]">
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
+        const { useState, useEffect } = React;
 
-        // ICONS
+        // ICONS (Inline SVGs for Lucide-like icons)
         const PlusIcon = () => (
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
         );
@@ -35,23 +33,27 @@
         const LoaderIcon = () => (
             <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
         );
-        const XIcon = () => (
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-        );
 
         const App = () => {
             const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxZ2Q1pF2bgf3DTxI947cd3Lbz_GnrwJ52i_nJY6kREMkP_l7oLonXc6N6ukCJoAj7yhw/exec"; 
 
-            const lineOptions = ["LV1", "LM1", "LM2", "LM3", "SL1", "SL2", "SL3", "MS1", "MS2", "EMBOSS", "DS1", "DS2", "DS3", "REWORK", "REPACK"];
+            const lineOptions = [
+                "LV1", "LM1", "LM2", "LM3", "SL1", "SL2", "SL3", "MS1", "MS2", 
+                "EMBOSS", "DS1", "DS2", "DS3", "REWORK", "REPACK"
+            ];
 
             const [isLoading, setIsLoading] = useState(false);
             const [status, setStatus] = useState({ type: '', message: '' });
-            const [showScanner, setShowScanner] = useState(false);
-            const [showFormModal, setShowFormModal] = useState(false);
-            
-            const [rows, setRows] = useState([]);
-            const [currentEntry, setCurrentEntry] = useState(null);
-            const scannerRef = useRef(null);
+            const [rows, setRows] = useState([
+                { 
+                    id: 1, no: 1, ccno: '', customer: '', spec: '', mc_semi: '', actual_width: '', 
+                    weight: '', product_size: '', qty_fg: '', qty_ng: '', cut: '', total_length: '', 
+                    coil_set: '', start_proc: '', end_proc: '', prod_keluar: '', 
+                    tbm: '', packing_back: '', waiting_mc: '', waiting_hagumi: '', waiting_crane: '', 
+                    hagumi_separator: '', winder: '', cleaning: '', machine_prob: '', other: '', 
+                    line_speed: '', remark: '' 
+                }
+            ]);
 
             const [header, setHeader] = useState({
                 tanggal: new Date().toISOString().split('T')[0],
@@ -61,97 +63,37 @@
 
             const [members, setMembers] = useState(Array(10).fill(''));
 
-            // Memanggil data dari DB ketika Tanggal atau Line berubah
-            useEffect(() => {
-                fetchDataFromDB();
-            }, [header.tanggal, header.line]);
-
-            const fetchDataFromDB = async () => {
-                setIsLoading(true);
-                try {
-                    const url = `${WEB_APP_URL}?tanggal=${header.tanggal}&line=${header.line}`;
-                    const response = await fetch(url);
-                    const result = await response.json();
-                    
-                    if (result.status === 'success') {
-                        setRows(result.data);
-                        // Update members jika ada di database
-                        if (result.members && result.members.length > 0) {
-                            let updatedMembers = Array(10).fill('');
-                            result.members.forEach((m, i) => { if(i < 10) updatedMembers[i] = m; });
-                            setMembers(updatedMembers);
-                        }
-                    }
-                } catch (error) {
-                    console.error("Gagal mengambil data", error);
-                } finally {
-                    setIsLoading(false);
-                }
-            };
-
-            // Initializing scanner logic
-            useEffect(() => {
-                if (showScanner) {
-                    const html5QrCode = new Html5Qrcode("reader");
-                    scannerRef.current = html5QrCode;
-                    
-                    html5QrCode.start(
-                        { facingMode: "environment" },
-                        { fps: 10, qrbox: { width: 250, height: 250 } },
-                        (decodedText) => {
-                            handleScanSuccess(decodedText);
-                        },
-                        (errorMessage) => { /* ignore errors */ }
-                    ).catch(err => console.error("Scanner error:", err));
-
-                    return () => {
-                        if (scannerRef.current) {
-                            scannerRef.current.stop().catch(e => console.error(e));
-                        }
-                    };
-                }
-            }, [showScanner]);
-
-            const handleScanSuccess = (text) => {
-                // Split by comma: Data 1, 2, 3, ..., 9
-                const parts = text.split(',');
-                if (parts.length < 6) {
-                    alert("Format QR Code tidak valid (minimal 6 data dipisahkan koma)");
-                    return;
-                }
-
-                // Map data: 1->CCNO, 2->Spec, 3->MC Semi, 6->Weight
-                const newEntry = {
-                    ccno: parts[0]?.trim() || '',
-                    spec: parts[1]?.trim() || '',
-                    mc_semi: parts[2]?.trim() || '',
-                    weight: parts[5]?.trim() || '',
-                    // Default fields
-                    customer: '', actual_width: '', product_size: '', qty_fg: '', qty_ng: '', 
+            const addRow = () => {
+                const newId = rows.length > 0 ? Math.max(...rows.map(r => r.id)) + 1 : 1;
+                setRows([...rows, { 
+                    id: newId, no: rows.length + 1, ccno: '', customer: '', spec: '', mc_semi: '', 
+                    actual_width: '', weight: '', product_size: '', qty_fg: '', qty_ng: '', 
                     cut: '', total_length: '', coil_set: '', start_proc: '', end_proc: '', 
                     prod_keluar: '', tbm: '', packing_back: '', waiting_mc: '', 
                     waiting_hagumi: '', waiting_crane: '', hagumi_separator: '', winder: '', 
-                    cleaning: '', machine_prob: '', other: '', line_speed: '', remark: ''
-                };
-
-                setCurrentEntry(newEntry);
-                setShowScanner(false);
-                setShowFormModal(true);
+                    cleaning: '', machine_prob: '', other: '', line_speed: '', remark: '' 
+                }]);
             };
 
-            // Fungsi Simpan Langsung ke Database dari Modal
-            const handleSaveSingleRowToDB = async () => {
+            const updateRow = (id, field, value) => {
+                setRows(rows.map(row => row.id === id ? { ...row, [field]: value } : row));
+            };
+
+            const handleSave = async () => {
                 setIsLoading(true);
-                
-                // Set Auto Number berdasar urutan terakhir
-                const newNo = rows.length > 0 ? Math.max(...rows.map(r => parseInt(r.no) || 0)) + 1 : 1;
-                const finalEntry = { ...currentEntry, no: newNo };
+                setStatus({ type: '', message: '' });
 
                 const payload = {
                     header: header,
                     members: members.filter(m => m.trim() !== ""),
-                    rows: [finalEntry] // Kirim hanya baris yang baru disecan
+                    rows: rows.filter(r => r.ccno.trim() !== "")
                 };
+
+                if (payload.rows.length === 0) {
+                    setStatus({ type: 'error', message: 'Isi minimal satu baris data (CCNO)!' });
+                    setIsLoading(false);
+                    return;
+                }
 
                 try {
                     await fetch(WEB_APP_URL, {
@@ -160,126 +102,26 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload)
                     });
-                    
-                    // Update tampilan tabel langsung tanpa perlu refresh browser
-                    const newId = rows.length > 0 ? Math.max(...rows.map(r => r.id)) + 1 : 1;
-                    setRows([...rows, { ...finalEntry, id: newId }]);
-                    
-                    setStatus({ type: 'success', message: '1 Data Berhasil Disimpan ke Database!' });
-                    setShowFormModal(false);
-                    setCurrentEntry(null);
+
+                    setStatus({ type: 'success', message: 'Data terkirim ke Google Sheets!' });
+                    setTimeout(() => setStatus({ type: '', message: '' }), 5000);
                 } catch (error) {
-                    setStatus({ type: 'error', message: 'Gagal mengirim data ke database.' });
+                    setStatus({ type: 'error', message: 'Gagal mengirim data. Cek koneksi.' });
                 } finally {
                     setIsLoading(false);
-                    setTimeout(() => setStatus({ type: '', message: '' }), 5000);
                 }
-            };
-
-            const updateRow = (id, field, value) => {
-                setRows(rows.map(row => row.id === id ? { ...row, [field]: value } : row));
             };
 
             return (
                 <div className="max-w-[1450px] mx-auto bg-white shadow-lg min-h-screen flex flex-col p-4 relative">
-                    
-                    {/* MODAL SCANNER */}
-                    {showScanner && (
-                        <div className="fixed inset-0 z-[100] modal-overlay flex items-center justify-center p-4">
-                            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
-                                <div className="p-4 border-b flex justify-between items-center bg-gray-50">
-                                    <h2 className="text-lg font-bold uppercase tracking-tight">Scan QR Code Produksi</h2>
-                                    <button onClick={() => setShowScanner(false)} className="text-gray-500 hover:text-black">
-                                        <XIcon />
-                                    </button>
-                                </div>
-                                <div id="reader" className="w-full aspect-square bg-black"></div>
-                                <div className="p-4 text-center text-gray-600 italic text-[10px]">
-                                    Arahkan kamera ke QR Code Label Produksi
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* MODAL FORM INPUT SETELAH SCAN */}
-                    {showFormModal && currentEntry && (
-                        <div className="fixed inset-0 z-[100] modal-overlay flex items-center justify-center p-4 overflow-y-auto">
-                            <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl mt-10 mb-10">
-                                <div className="p-4 border-b flex justify-between items-center bg-blue-600 text-white sticky top-0 z-10">
-                                    <h2 className="text-lg font-bold uppercase">Lengkapi Data Produksi</h2>
-                                    <button onClick={() => setShowFormModal(false)}><XIcon /></button>
-                                </div>
-                                <div className="p-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-                                    {/* Data Hasil Scan QR (Terisi Otomatis) */}
-                                    <div className="col-span-full text-blue-700 font-bold uppercase text-[10px] border-b border-blue-200 pb-1 mb-2">Data dari QR Code (Terisi Otomatis)</div>
-                                    <div><label className="block font-bold mb-1 text-blue-700">CCNO</label><input className="w-full border border-blue-300 bg-blue-100 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-900" type="text" value={currentEntry.ccno} readOnly  /></div>
-                                    <div><label className="block font-bold mb-1 text-blue-700">Spec</label><input className="w-full border border-blue-300 bg-blue-100 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-900" type="text" value={currentEntry.spec} readOnly  /></div>
-                                    <div><label className="block font-bold mb-1 text-blue-700">MC/Semi</label><input className="w-full border border-blue-300 bg-blue-100 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-900" type="text" value={currentEntry.mc_semi} readOnly  /></div>
-                                    <div><label className="block font-bold mb-1 text-blue-700">Weight</label><input className="w-full border border-blue-300 bg-blue-100 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-900" type="text" value={currentEntry.weight} readOnly  /></div>
-                                    
-                                    <div className="col-span-full border-t border-gray-200 mt-2"></div>
-
-                                    {/* Data Produksi Tambahan */}
-                                    <div className="col-span-full text-gray-500 font-bold uppercase text-[10px] pb-1">Input Data Produksi</div>
-                                    <div><label className="block font-bold mb-1">Customer</label><input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" type="text" value={currentEntry.customer} onChange={e => setCurrentEntry({...currentEntry, customer: e.target.value})} /></div>
-                                    <div><label className="block font-bold mb-1">Product Size</label><input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" type="text" value={currentEntry.product_size} onChange={e => setCurrentEntry({...currentEntry, product_size: e.target.value})} /></div>
-                                    <div><label className="block font-bold mb-1">Width MC</label><input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" type="text" value={currentEntry.actual_width} onChange={e => setCurrentEntry({...currentEntry, actual_width: e.target.value})} /></div>
-                                    <div><label className="block font-bold mb-1">Total Length</label><input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" type="text" value={currentEntry.total_length} onChange={e => setCurrentEntry({...currentEntry, total_length: e.target.value})} /></div>
-                                    
-                                    <div><label className="block font-bold mb-1">Qty FG</label><input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" type="number" value={currentEntry.qty_fg} onChange={e => setCurrentEntry({...currentEntry, qty_fg: e.target.value})} /></div>
-                                    <div><label className="block font-bold mb-1">Qty NG</label><input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" type="number" value={currentEntry.qty_ng} onChange={e => setCurrentEntry({...currentEntry, qty_ng: e.target.value})} /></div>
-                                    <div><label className="block font-bold mb-1">Cut Skid</label><input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" type="text" value={currentEntry.cut} onChange={e => setCurrentEntry({...currentEntry, cut: e.target.value})} /></div>
-                                    <div><label className="block font-bold mb-1">Coil Set</label><input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" type="text" value={currentEntry.coil_set} onChange={e => setCurrentEntry({...currentEntry, coil_set: e.target.value})} /></div>
-                                    
-                                    <div className="col-span-full border-t border-gray-200 mt-2"></div>
-
-                                    {/* Waktu & Kecepatan */}
-                                    <div><label className="block font-bold mb-1">Start Proc</label><input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" type="time" value={currentEntry.start_proc} onChange={e => setCurrentEntry({...currentEntry, start_proc: e.target.value})} /></div>
-                                    <div><label className="block font-bold mb-1">End Proc</label><input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" type="time" value={currentEntry.end_proc} onChange={e => setCurrentEntry({...currentEntry, end_proc: e.target.value})} /></div>
-                                    <div><label className="block font-bold mb-1">Keluar Mesin</label><input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" type="time" value={currentEntry.prod_keluar} onChange={e => setCurrentEntry({...currentEntry, prod_keluar: e.target.value})} /></div>
-                                    <div><label className="block font-bold mb-1">Line Speed</label><input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" type="text" value={currentEntry.line_speed} onChange={e => setCurrentEntry({...currentEntry, line_speed: e.target.value})} /></div>
-                                    
-                                    <div className="col-span-full border-t border-gray-200 mt-2"></div>
-
-                                    {/* Down Time (Menit) */}
-                                    <div className="col-span-full text-gray-500 font-bold uppercase text-[10px]">Downtime / Gangguan (Menit)</div>
-                                    <div><label className="block font-bold mb-1">TBM</label><input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" type="number" value={currentEntry.tbm} onChange={e => setCurrentEntry({...currentEntry, tbm: e.target.value})} /></div>
-                                    <div><label className="block font-bold mb-1">Packing Back (Jam)</label><input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" type="time" value={currentEntry.packing_back} onChange={e => setCurrentEntry({...currentEntry, packing_back: e.target.value})} /></div>
-                                    <div><label className="block font-bold mb-1">Wait MC</label><input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" type="number" value={currentEntry.waiting_mc} onChange={e => setCurrentEntry({...currentEntry, waiting_mc: e.target.value})} /></div>
-                                    <div><label className="block font-bold mb-1">Wait Hagumi</label><input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" type="number" value={currentEntry.waiting_hagumi} onChange={e => setCurrentEntry({...currentEntry, waiting_hagumi: e.target.value})} /></div>
-                                    <div><label className="block font-bold mb-1">Wait Crane</label><input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" type="number" value={currentEntry.waiting_crane} onChange={e => setCurrentEntry({...currentEntry, waiting_crane: e.target.value})} /></div>
-                                    <div><label className="block font-bold mb-1">Hagumi / Separator</label><input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" type="number" value={currentEntry.hagumi_separator} onChange={e => setCurrentEntry({...currentEntry, hagumi_separator: e.target.value})} /></div>
-                                    <div><label className="block font-bold mb-1">Winder</label><input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" type="number" value={currentEntry.winder} onChange={e => setCurrentEntry({...currentEntry, winder: e.target.value})} /></div>
-                                    <div><label className="block font-bold mb-1">Cleaning</label><input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" type="number" value={currentEntry.cleaning} onChange={e => setCurrentEntry({...currentEntry, cleaning: e.target.value})} /></div>
-                                    <div><label className="block font-bold mb-1">Machine Prob</label><input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" type="number" value={currentEntry.machine_prob} onChange={e => setCurrentEntry({...currentEntry, machine_prob: e.target.value})} /></div>
-                                    <div><label className="block font-bold mb-1">Other</label><input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" type="number" value={currentEntry.other} onChange={e => setCurrentEntry({...currentEntry, other: e.target.value})} /></div>
-
-                                    <div className="col-span-full">
-                                        <label className="block font-bold mb-1">Remark / Catatan</label>
-                                        <input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" type="text" value={currentEntry.remark} onChange={e => setCurrentEntry({...currentEntry, remark: e.target.value})} />
-                                    </div>
-
-                                    {/* Action Buttons */}
-                                    <div className="col-span-full border-t pt-4 flex justify-end gap-3 mt-2">
-                                        <button onClick={() => setShowFormModal(false)} className="px-6 py-2 border rounded hover:bg-gray-50 uppercase font-bold text-gray-600">Batal</button>
-                                        <button onClick={handleSaveSingleRowToDB} disabled={isLoading} className="px-8 py-2 bg-green-600 text-white rounded hover:bg-green-700 uppercase font-bold shadow-lg flex items-center gap-2">
-                                            {isLoading ? <LoaderIcon /> : <SaveIcon />}
-                                            SIMPAN LANGSUNG KE DATABASE
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* STATUS NOTIFICATION */}
                     {status.message && (
-                        <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[150] px-6 py-3 rounded-md shadow-2xl text-white font-bold animate-bounce ${status.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
+                        <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-md shadow-2xl text-white font-bold animate-pulse ${
+                            status.type === 'success' ? 'bg-green-600' : 'bg-red-600'
+                        }`}>
                             {status.message}
                         </div>
                     )}
 
-                    {/* HEADER SECTION */}
                     <div className="flex justify-between items-start border-b-2 border-black pb-2 mb-4">
                         <div className="w-1/3">
                             <div className="flex items-center gap-2 mb-2">
@@ -289,7 +131,6 @@
                         </div>
                         <div className="w-1/3 text-center">
                             <h1 className="text-2xl font-black underline tracking-widest uppercase">Production Report</h1>
-                            {isLoading && <span className="text-blue-600 text-xs font-bold animate-pulse">Menyinkronkan Data...</span>}
                         </div>
                         <div className="w-1/3 flex flex-col items-end gap-2 text-sm uppercase">
                             <div className="flex gap-4">
@@ -304,11 +145,11 @@
                                     <input type="text" className="w-16 border-none text-center focus:ring-0 p-0 uppercase" value={header.ot} onChange={(e) => setHeader({...header, ot: e.target.value})} placeholder="..." />
                                 </div>
                             </div>
+                            <span className="text-[9px] italic font-serif">PM 5.5.1/L1 Rev. 5</span>
                         </div>
                     </div>
 
-                    {/* TABLE SECTION */}
-                    <div className="flex-grow overflow-auto border border-black relative">
+                    <div className="flex-grow overflow-auto border border-black">
                         <table className="w-full border-collapse table-fixed min-w-[2100px] uppercase">
                             <thead className="sticky top-0 bg-white z-10 text-center">
                                 <tr>
@@ -346,13 +187,8 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {rows.length === 0 && !isLoading && (
-                                    <tr>
-                                        <td colSpan="28" className="h-20 text-center text-gray-400 italic font-bold">Data kosong / Klik tombol (+) untuk scan label dan menambah data</td>
-                                    </tr>
-                                )}
                                 {rows.map((row) => (
-                                    <tr key={row.id} className="h-8 hover:bg-blue-100 transition-colors">
+                                    <tr key={row.id} className="h-8 hover:bg-blue-50 transition-colors">
                                         <td className="border border-black text-center bg-gray-50 font-bold">{row.no}</td>
                                         {[ 'ccno', 'customer', 'spec', 'mc_semi', 'actual_width', 'weight', 'product_size', 'qty_fg', 'qty_ng', 'cut', 'total_length', 'coil_set' ].map(field => (
                                             <td key={field} className="border border-black p-0">
@@ -379,7 +215,6 @@
                         </table>
                     </div>
 
-                    {/* FOOTER SECTION */}
                     <div className="mt-4 grid grid-cols-12 gap-4 h-48 overflow-hidden uppercase">
                         <div className="col-span-4 border border-black flex flex-col h-full">
                             <div className="bg-gray-100 border-b border-black text-center font-bold text-sm py-1">Line Member</div>
@@ -417,25 +252,30 @@
                             </div>
                         </div>
 
-                        <div className="col-span-5 border border-black bg-blue-100/40 p-2 text-[10px] flex flex-col justify-between italic">
+                        <div className="col-span-4 border border-black bg-blue-50/40 p-2 text-[10px] flex flex-col justify-between italic">
                             <div>
-                                <p className="font-black underline mb-1">PROSEDUR & UPDATE</p>
-                                <ol className="list-decimal ml-3 leading-tight">
-                                    <li>Pilih Tanggal dan Line, tabel akan otomatis menampilkan data terkait dari Database.</li>
-                                    <li>Klik tombol (+) biru untuk Scan QR Label.</li>
-                                    <li>Lengkapi SEMUA DATA pada pop-up modal.</li>
-                                    <li>Klik "Simpan Langsung Ke Database", data akan langsung tercatat & muncul di tabel.</li>
-                                </ol>
+                                <p className="font-black underline mb-1">DEFINISI & RULE</p>
+                                <p><strong>Coil Set</strong>: Pasang coil ke drum. <strong>Start</strong>: Setting otomatis running. <strong>End</strong>: Coil lepas drum.</p>
+                                <ul className="list-disc ml-3 mt-1 leading-tight">
+                                    <li>Input minimal 1 baris CCNO untuk simpan.</li>
+                                    <li>Gunakan TAB untuk navigasi cepat.</li>
+                                </ul>
                             </div>
-                            <p className="text-[8px] opacity-70 uppercase font-bold text-blue-900">Digital Production Report v2.1</p>
+                            <p className="text-[8px] opacity-70 uppercase font-bold text-blue-900">PM 5.5.1/L1 Rev. 5</p>
+                        </div>
+
+                        <div className="col-span-1 border border-black flex flex-col">
+                            <div className="text-[9px] text-center border-b border-black py-1 font-bold bg-gray-100">LEADER</div>
+                            <div className="flex-grow"></div>
                         </div>
                     </div>
 
-                    {/* FLOATING ACTION BUTTONS */}
                     <div className="fixed bottom-6 right-6 flex flex-col gap-3">
-                        <button onClick={() => setShowScanner(true)} className="bg-blue-600 text-white p-4 rounded-full shadow-2xl hover:bg-blue-700 active:scale-90 transition-all group flex items-center gap-2">
+                        <button onClick={addRow} className="bg-blue-600 text-white p-4 rounded-full shadow-2xl hover:bg-blue-700 active:scale-90 transition-all">
                             <PlusIcon />
-                            <span className="hidden group-hover:inline pr-2 font-bold">SCAN QR</span>
+                        </button>
+                        <button onClick={handleSave} disabled={isLoading} className={`${isLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'} text-white p-4 rounded-full shadow-2xl active:scale-90 transition-all`}>
+                            {isLoading ? <LoaderIcon /> : <SaveIcon />}
                         </button>
                     </div>
                 </div>
