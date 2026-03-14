@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Production Report System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- QR Code Scanner Library -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <style>
+        /* Mempertegas garis tabel hitam pekat sesuai gambar */
+        table, th, td {
+            border: 1px solid #000 !important;
+        }
+        
+        /* Font standar sesuai permintaan - DENGAN TEXT WRAPPING */
+        th { 
+            @apply bg-gray-100 text-[9px] font-normal text-center uppercase tracking-tighter leading-tight p-1;
+            height: 50px;
+            white-space: normal;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            vertical-align: middle;
+        }
+
+        /* Style khusus untuk header grup (Qty, Cut, Down Time) - DENGAN TEXT WRAPPING */
+        .header-group {
+            @apply bg-white text-[9px] font-normal py-0 uppercase border-b-0;
+            height: auto;
+            min-height: 22px;
+            white-space: normal;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        td { 
+            @apply text-[10px] p-0 whitespace-nowrap overflow-hidden text-ellipsis h-8 font-normal;
+        }
+
+        /* Penentuan Lebar Kolom - DIPERKECIL 1/3 LAGI */
+        .col-no { width: 35px; }
+        .col-ccno { width: 150px; }
+        .col-cust { width: 180px; }
+        .col-spec { width: 100px; }
+        .col-size { width: 120px; }
+        .col-actual { width: 6px; }      /* dari 18px */
+        .col-weight { width: 8px; }      /* dari 23px */
+        .col-prod-size { width: 50px; }
+        
+        /* Grup Qty & Cut */
+        .col-qty { width: 5px; }         /* dari 15px */
+        .col-cut { width: 7px; }         /* dari 20px */
+        .col-len { width: 8px; }         /* dari 25px */
+        
+        /* Grup Waktu Proses */
+        .col-time { width: 7px; }        /* dari 22px */
+        
+        /* Grup Down Time */
+        .col-dt { width: 6px; }         /* dari 18px */
+        
+        .col-speed { width: 6px; }      /* dari 18px */
+        .col-remark { width: 150px; }
+        .col-action { width: 60px; }
+
+        /* Input styling */
+        .table-input { 
+            @apply w-full h-full text-center text-[10px] focus:outline-none focus:bg-blue-50 font-normal; 
+            border: none !important; 
+            background: transparent;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar { height: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #888; border-radius: 5px; }
+        
+        /* Loading and notification styles */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        
+        .loading-spinner {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 5px;
+            color: white;
+            font-weight: bold;
+            z-index: 10000;
+            display: none;
+        }
+        
+        .notification.success { background: #10b981; }
+        .notification.error { background: #ef4444; }
+        
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9998;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+        
+        .modal-header {
+            background: #1e40af;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-body {
+            padding: 20px;
+        }
+        
+        .qr-scanner-container {
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto 20px;
+            border: 2px solid #1e40af;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+        
+        .form-group label {
+            font-size: 11px;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #374151;
+        }
+        
+        .form-group input, .form-group select {
+            padding: 8px 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #1e40af;
+            ring: 2px solid #93c5fd;
+        }
+        
+        .qr-data-display {
+            background: #f3f4f6;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            margin-bottom: 15px;
+        }
+        
+        .qr-data-display span {
+            display: inline-block;
+            margin-right: 15px;
+            margin-bottom: 5px;
+        }
+        
+        .qr-data-display .label {
+            font-weight: bold;
+            color: #1e40af;
+        }
+        
+        .btn-close {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 5px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .btn-close:hover {
+            background: #dc2626;
+        }
+        
+        .btn-primary {
+            background: #1e40af;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .btn-primary:hover {
+            background: #1e3a8a;
+        }
+        
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+        
+        .scan-btn {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .scan-btn:hover {
+            background: #059669;
+        }
+        
+        .qr-result {
+            background: #d1fae5;
+            border: 1px solid #10b981;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-2">
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner">
+            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-2"></div>
+            <p class="text-sm">Processing...</p>
+        </div>
+    </div>
+    
+    <!-- Notification -->
+    <div id="notification" class="notification"></div>
+
+    <!-- QR Scan & Input Modal -->
+    <div id="qrModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="text-lg font-bold">📱 Scan QR Code - Tambah Data Produksi</h2>
+                <button onclick="closeModal()" class="btn-close">✕ Tutup</button>
+            </div>
+            <div class="modal-body">
+                <!-- QR Scanner Section -->
+                <div id="scannerSection">
+                    <p class="text-sm text-gray-600 mb-3 text-center">Arahkan kamera ke QR Code untuk scan data coil</p>
+                    <div id="qr-reader" class="qr-scanner-container"></div>
+                    <div class="text-center">
+                        <button onclick="startScan()" class="scan-btn">📷 Mulai Scan</button>
+                        <button onclick="stopScan()" class="btn-secondary ml-2">⏹️ Stop Scan</button>
+                    </div>
+                    <div id="qr-result" class="qr-result" style="display: none;"></div>
+                </div>
+                
+                <!-- Form Input Section (Hidden initially) -->
+                <div id="formSection" style="display: none;">
+                    <div class="qr-data-display">
+                        <p class="text-xs text-gray-500 mb-2">Data dari QR Code:</p>
+                        <span><span class="label">CC NO:</span> <span id="qrCCNO">-</span></span>
+                        <span><span class="label">Spec:</span> <span id="qrSpec">-</span></span>
+                        <span><span class="label">MC Size:</span> <span id="qrMCSize">-</span></span>
+                        <span><span class="label">Weight:</span> <span id="qrWeight">-</span></span>
+                    </div>
+                    
+                    <h3 class="text-sm font-bold mb-3 text-blue-800">📝 Lengkapi Data Berikut:</h3>
+                    <form id="productionForm" class="form-grid">
+                        <div class="form-group full-width">
+                            <label>Customer *</label>
+                            <input type="text" id="formCustomer" required placeholder="Nama Customer">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Actual Width MC *</label>
+                            <input type="text" id="formActualWidth" required placeholder="Contoh: 1220">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Product Size *</label>
+                            <input type="text" id="formProductSize" required placeholder="Contoh: 1.20 x 1219 x C">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>FG (Finish Good) *</label>
+                            <input type="number" id="formFG" required placeholder="Jumlah FG" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>NG (Not Good) *</label>
+                            <input type="number" id="formNG" required placeholder="Jumlah NG" min="0" value="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Total Skid *</label>
+                            <input type="number" id="formTotalSkid" required placeholder="Jumlah Skid" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Total Length *</label>
+                            <input type="text" id="formTotalLength" required placeholder="Contoh: 150 m">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Coil Set Lifter</label>
+                            <input type="text" id="formCoilSetLifter" placeholder="HH:MM">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Start Process</label>
+                            <input type="text" id="formStartProcess" placeholder="HH:MM">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>End Process</label>
+                            <input type="text" id="formEndProcess" placeholder="HH:MM">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Produk Keluar Mesin</label>
+                            <input type="text" id="formProdukKeluar" placeholder="HH:MM">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Line Speed</label>
+                            <input type="text" id="formLineSpeed" placeholder="Contoh: 35">
+                        </div>
+                        
+                        <!-- Down Time Fields -->
+                        <div class="form-group">
+                            <label>DT - TBM (menit)</label>
+                            <input type="number" id="formDT_TBM" placeholder="0" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>DT - Packing Coil Back</label>
+                            <input type="number" id="formDT_Packing" placeholder="0" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>DT - Waiting MC</label>
+                            <input type="number" id="formDT_WaitingMC" placeholder="0" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>DT - Waiting Hagumi</label>
+                            <input type="number" id="formDT_WaitingHagumi" placeholder="0" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>DT - Waiting Crane</label>
+                            <input type="number" id="formDT_WaitingCrane" placeholder="0" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>DT - Hagumi/Separator</label>
+                            <input type="number" id="formDT_Hagumi" placeholder="0" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>DT - Winder Top/End</label>
+                            <input type="number" id="formDT_Winder" placeholder="0" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>DT - Cleaning Mesin</label>
+                            <input type="number" id="formDT_Cleaning" placeholder="0" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>DT - Machine Problem</label>
+                            <input type="number" id="formDT_MachineProb" placeholder="0" min="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>DT - Other</label>
+                            <input type="number" id="formDT_Other" placeholder="0" min="0">
+                        </div>
+                        
+                        <div class="form-group full-width">
+                            <label>Remark / Catatan</label>
+                            <input type="text" id="formRemark" placeholder="Keterangan tambahan...">
+                        </div>
+                    </form>
+                    
+                    <div class="mt-4 flex justify-end space-x-2">
+                        <button onclick="resetForm()" class="btn-secondary">🔄 Reset</button>
+                        <button onclick="submitForm()" class="btn-primary">✅ Simpan ke Tabel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-[100%] mx-auto bg-white shadow-xl border border-black">
+        
+        <!-- Header Atas -->
+        <div class="p-4 flex justify-between items-start border-b border-black">
+            <div class="w-1/4">
+                <div class="border-b border-black pb-1 mb-1">
+                    <span class="text-xs">Tanggal:</span>
+                    <input type="date" id="reportDate" class="text-xs focus:outline-none">
+                </div>
+                <div class="mt-2">
+                    <button onclick="loadByDate()" class="bg-green-600 hover:bg-green-700 text-white text-[10px] px-3 py-1 rounded mr-1">
+                        Load by Date
+                    </button>
+                    <button onclick="loadByLine()" class="bg-blue-600 hover:bg-blue-700 text-white text-[10px] px-3 py-1 rounded">
+                        Load by Line
+                    </button>
+                </div>
+            </div>
+            
+            <div class="flex-1 text-center">
+                <h1 class="text-2xl font-bold tracking-widest">PRODUCTION REPORT</h1>
+            </div>
+
+            <div class="w-1/4 flex flex-col items-end">
+                <div class="flex space-x-4 mb-2">
+                    <div class="text-center">
+                        <div class="text-[10px] font-bold">LINE</div>
+                        <div class="border border-black px-2 py-1 w-28 min-h-[30px] flex items-center justify-center bg-white">
+                            <select id="lineSelect" class="w-full text-center text-sm focus:outline-none bg-transparent cursor-pointer">
+                                <option value="LV1">LV1</option>
+                                <option value="LM1">LM1</option>
+                                <option value="LM2">LM2</option>
+                                <option value="LM3">LM3</option>
+                                <option value="SL1">SL1</option>
+                                <option value="SL2">SL2</option>
+                                <option value="SL3">SL3</option>
+                                <option value="MS1">MS1</option>
+                                <option value="MS2">MS2</option>
+                                <option value="EMBOSS">EMBOSS</option>
+                                <option value="DS1">DS1</option>
+                                <option value="DS2">DS2</option>
+                                <option value="DS3">DS3</option>
+                                <option value="REWORK">REWORK</option>
+                                <option value="REPACK">REPACK</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-[10px] font-bold">OT</div>
+                        <div class="border border-black px-2 py-1 w-28 min-h-[30px] flex items-center justify-center bg-white">
+                            <input type="text" id="otInput" class="w-full text-center text-sm focus:outline-none" placeholder="...">
+                        </div>
+                    </div>
+                </div>
+                <div class="text-right leading-none">
+                    <span class="text-[8px] italic block">PM 5.5.1/L1</span>
+                    <span class="text-[8px] italic block">Rev. 5</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Area Tabel -->
+        <div class="overflow-x-auto custom-scrollbar">
+            <table class="border-collapse table-fixed" style="min-width: 2200px;">
+                <thead>
+                    <!-- Row 1: Detailed Headers -->
+                    <tr>
+                        <th class="col-no">NO</th>
+                        <th class="col-ccno">CCNO</th>
+                        <th class="col-cust">Customer</th>
+                        <th class="col-spec">Spec</th>
+                        <th class="col-size">MC / Semi Prod Size</th>
+                        <th class="col-actual">Actual<br>Width<br>MC</th>
+                        <th class="col-weight">Weight</th>
+                        <th class="col-prod-size">Product<br>Size</th>
+                        
+                        <th class="col-qty">FG</th>
+                        <th class="col-qty">NG</th>
+                        <th class="col-cut">Total<br>Skid</th>
+                        <th class="col-len">Total<br>Length</th>
+                        <th class="col-time">Coil<br>Set<br>Lifter</th>
+                        <th class="col-time">Start<br>Process</th>
+                        <th class="col-time">End<br>Process</th>
+                        <th class="col-prod-size">Produk<br>keluar<br>mesin</th>
+                        
+                        <!-- Down Time Section -->
+                        <th class="col-dt bg-gray-50">TBM</th>
+                        <th class="col-dt bg-gray-50">Packing<br>Coil<br>Back</th>
+                        <th class="col-dt bg-gray-50">Waiting<br>MC</th>
+                        <th class="col-dt bg-gray-50">Waiting<br>Hagumi</th>
+                        <th class="col-dt bg-gray-50">Waiting<br>Crane</th>
+                        <th class="col-dt bg-gray-50">Hagumi<br>/<br>Separator</th>
+                        <th class="col-dt bg-gray-50">Winder<br>Top/<br>End</th>
+                        <th class="col-dt bg-gray-50">Cleaning<br>Mesin</th>
+                        <th class="col-dt bg-gray-50">Machine<br>Problem</th>
+                        <th class="col-dt bg-gray-50">Other</th>
+                        
+                        <th class="col-speed">Line<br>Speed</th>
+                        <th class="col-remark">Remark</th>
+                        <th class="col-action bg-blue-50">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <!-- Rows will be dynamically generated -->
+                </tbody>
+            </table>
+        </div>
+
+        <div class="p-2 border-t border-black bg-gray-50 flex justify-between items-center">
+            <div class="flex space-x-2">
+                <button onclick="openAddRowModal()" class="bg-blue-600 hover:bg-blue-700 text-white text-[11px] px-4 py-1.5 rounded shadow-sm uppercase font-bold">
+                    + 📱 Scan QR - Tambah Baris
+                </button>
+                <button onclick="saveAllData()" class="bg-green-600 hover:bg-green-700 text-white text-[11px] px-4 py-1.5 rounded shadow-sm uppercase font-bold">
+                    💾 Simpan Semua
+                </button>
+                <button onclick="clearAll()" class="bg-red-600 hover:bg-red-700 text-white text-[11px] px-4 py-1.5 rounded shadow-sm uppercase font-bold">
+                    🗑️ Clear All
+                </button>
+            </div>
+            <div class="text-[10px]">Total Baris: <span id="itemCount" class="font-bold">0</span></div>
+        </div>
+
+        <!-- Footer -->
+        <div class="grid grid-cols-1 md:grid-cols-4 border-t border-black divide-x divide-black">
+            <div class="p-2">
+                <span class="text-[10px] font-bold border-b border-black w-full block mb-1">Line Member</span>
+                <div class="grid grid-cols-2 gap-x-2 gap-y-1">
+                    <div class="flex border-b border-gray-300 text-[10px]">1. <input type="text" id="member1" class="w-full focus:outline-none bg-transparent ml-1"></div>
+                    <div class="flex border-b border-gray-300 text-[10px]">6. <input type="text" id="member6" class="w-full focus:outline-none bg-transparent ml-1"></div>
+                    <div class="flex border-b border-gray-300 text-[10px]">2. <input type="text" id="member2" class="w-full focus:outline-none bg-transparent ml-1"></div>
+                    <div class="flex border-b border-gray-300 text-[10px]">7. <input type="text" id="member7" class="w-full focus:outline-none bg-transparent ml-1"></div>
+                    <div class="flex border-b border-gray-300 text-[10px]">3. <input type="text" id="member3" class="w-full focus:outline-none bg-transparent ml-1"></div>
+                    <div class="flex border-b border-gray-300 text-[10px]">8. <input type="text" id="member8" class="w-full focus:outline-none bg-transparent ml-1"></div>
+                    <div class="flex border-b border-gray-300 text-[10px]">4. <input type="text" id="member4" class="w-full focus:outline-none bg-transparent ml-1"></div>
+                    <div class="flex border-b border-gray-300 text-[10px]">9. <input type="text" id="member9" class="w-full focus:outline-none bg-transparent ml-1"></div>
+                    <div class="flex border-b border-gray-300 text-[10px]">5. <input type="text" id="member5" class="w-full focus:outline-none bg-transparent ml-1"></div>
+                    <div class="flex border-b border-gray-300 text-[10px]">10. <input type="text" id="member10" class="w-full focus:outline-none bg-transparent ml-1"></div>
+                </div>
+            </div>
+
+            <div class="p-2 flex flex-col">
+                <span class="text-[10px] font-bold mb-4 uppercase text-center w-full">TOTAL PROSES</span>
+                <div class="mt-auto">
+                    <table class="w-full">
+                        <tr><td class="text-[9px] bg-gray-50 px-2 border">Coil / Skid</td><td class="text-center font-normal px-4 border w-24" id="totalCoil">0</td></tr>
+                        <tr><td class="text-[9px] bg-gray-50 px-2 border">Berat (kg)</td><td class="text-center font-normal px-4 border w-24" id="totalWeight">0</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="p-2 text-[8.5px] leading-tight">
+                <p class="font-bold underline mb-1 italic">Definisi · Rule</p>
+                <p><strong>Down Time:</strong> Jika Loss time terjadi bahkan dengan large uncoiler, maka harap isi setiap kolom.</p>
+                <p><strong>Remark:</strong> Input detail NG proses, loss time, dan alasan lainnya.</p>
+            </div>
+
+            <div class="p-2 flex items-center justify-center">
+                <div class="border border-black w-40 h-20 relative flex items-center justify-center">
+                    <span class="absolute top-0 w-full text-center text-[9px] border-b border-black bg-gray-50 py-0.5 font-bold">Cek Oleh Leader</span>
+                    <span class="text-gray-300 text-[10px]">Tanda Tangan</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // CONFIGURATION - UPDATE THIS WITH YOUR DEPLOYED WEB APP URL
+        // ==========================================
+        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxJ7sP221CjhvwCLglkGRi-pbcqTZKCtdsuUTYVdh7rcFVX2Md9Eo7820PNJZ6D-svyQA/exec';
+        
+        // QR Scanner instance
+        let html5QrCode = null;
+        let scannedQRData = null;
+        
+        // Set default date
+        document.getElementById('reportDate').valueAsDate = new Date();
+        
+        // ==========================================
+        // QR SCANNER FUNCTIONS
+        // ==========================================
+        
+        function openAddRowModal() {
+            document.getElementById('qrModal').style.display = 'flex';
+            document.getElementById('scannerSection').style.display = 'block';
+            document.getElementById('formSection').style.display = 'none';
+            document.getElementById('qr-result').style.display = 'none';
+            scannedQRData = null;
+        }
+        
+        function closeModal() {
+            stopScan();
+            document.getElementById('qrModal').style.display = 'none';
+            resetForm();
+        }
+        
+        function startScan() {
+            const qrReader = document.getElementById('qr-reader');
+            
+            html5QrCode = new Html5Qrcode("qr-reader");
+            
+            const config = {
+                fps: 10,
+                qrbox: { width: 250, height: 250 },
+                aspectRatio: 1.0
+            };
+            
+            html5QrCode.start(
+                { facingMode: "environment" },
+                config,
+                onScanSuccess,
+                onScanError
+            ).catch(err => {
+                showNotification('Error starting camera: ' + err, 'error');
+            });
+        }
+        
+        function stopScan() {
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    html5QrCode = null;
+                }).catch(err => {
+                    console.error('Error stopping scan:', err);
+                });
+            }
+        }
+        
+        function onScanSuccess(decodedText, decodedResult) {
+            console.log('QR Code scanned:', decodedText);
+            
+            // Parse QR Code data (9 fields separated by comma)
+            // Format: data1,data2,data3,data4,data5,data6,data7,data8,data9
+            const qrData = decodedText.split(',');
+            
+            if (qrData.length < 6) {
+                showNotification('Invalid QR Code format. Expected 9 data fields.', 'error');
+                return;
+            }
+            
+            // Store scanned data
+            scannedQRData = {
+                ccno: qrData[0].trim(),           // Data 1 -> CC NO
+                spec: qrData[1].trim(),            // Data 2 -> Spec
+                mcSize: qrData[2].trim(),          // Data 3 -> MC / Semi Prod Size
+                weight: qrData[5].trim()           // Data 6 -> Weight
+            };
+            
+            // Display result
+            document.getElementById('qr-result').innerHTML = `
+                <strong>✅ QR Code berhasil discan!</strong><br>
+                CC NO: ${scannedQRData.ccno} | Spec: ${scannedQRData.spec} | Weight: ${scannedQRData.weight}
+            `;
+            document.getElementById('qr-result').style.display = 'block';
+            
+            // Stop scanning
+            stopScan();
+            
+            // Show form with QR data pre-filled
+            showFormWithQRData();
+            
+            showNotification('QR Code scanned successfully!');
+        }
+        
+        function onScanError(errorMessage) {
+            // Handle scan error silently (QR not detected yet)
+            console.log('Scan error:', errorMessage);
+        }
+        
+        function showFormWithQRData() {
+            if (!scannedQRData) return;
+            
+            // Update QR data display
+            document.getElementById('qrCCNO').textContent = scannedQRData.ccno;
+            document.getElementById('qrSpec').textContent = scannedQRData.spec;
+            document.getElementById('qrMCSize').textContent = scannedQRData.mcSize;
+            document.getElementById('qrWeight').textContent = scannedQRData.weight;
+            
+            // Show form section
+            document.getElementById('scannerSection').style.display = 'none';
+            document.getElementById('formSection').style.display = 'block';
+        }
+        
+        function resetForm() {
+            document.getElementById('productionForm').reset();
+            document.getElementById('qr-result').style.display = 'none';
+            scannedQRData = null;
+            
+            // Reset QR display
+            document.getElementById('qrCCNO').textContent = '-';
+            document.getElementById('qrSpec').textContent = '-';
+            document.getElementById('qrMCSize').textContent = '-';
+            document.getElementById('qrWeight').textContent = '-';
+            
+            // Go back to scanner
+            document.getElementById('scannerSection').style.display = 'block';
+            document.getElementById('formSection').style.display = 'none';
+        }
+        
+        function submitForm() {
+            if (!scannedQRData) {
+                showNotification('Please scan QR Code first', 'error');
+                return;
+            }
+            
+            // Validate required fields
+            const requiredFields = ['formCustomer', 'formActualWidth', 'formProductSize', 'formFG', 'formNG', 'formTotalSkid', 'formTotalLength'];
+            for (let fieldId of requiredFields) {
+                const field = document.getElementById(fieldId);
+                if (!field.value.trim()) {
+                    field.focus();
+                    showNotification('Please fill all required fields', 'error');
+                    return;
+                }
+            }
+            
+            // Create data object for new row
+            const formData = {
+                ID: 'new_' + Date.now(),
+                CCNO: scannedQRData.ccno,
+                Spec: scannedQRData.spec,
+                MC_Semi_Prod_Size: scannedQRData.mcSize,
+                Weight: scannedQRData.weight,
+                Customer: document.getElementById('formCustomer').value,
+                Actual_Width_MC: document.getElementById('formActualWidth').value,
+                Product_Size: document.getElementById('formProductSize').value,
+                FG: document.getElementById('formFG').value,
+                NG: document.getElementById('formNG').value,
+                Total_Skid: document.getElementById('formTotalSkid').value,
+                Total_Length: document.getElementById('formTotalLength').value,
+                Coil_Set_Lifter: document.getElementById('formCoilSetLifter').value || '',
+                Start_Process: document.getElementById('formStartProcess').value || '',
+                End_Process: document.getElementById('formEndProcess').value || '',
+                Produk_Keluar_Mesin: document.getElementById('formProdukKeluar').value || '',
+                Line_Speed: document.getElementById('formLineSpeed').value || '',
+                Remark: document.getElementById('formRemark').value || '',
+                // Down Time
+                DT_TBM: document.getElementById('formDT_TBM').value || '',
+                DT_Packing_Coil_Back: document.getElementById('formDT_Packing').value || '',
+                DT_Waiting_MC: document.getElementById('formDT_WaitingMC').value || '',
+                DT_Waiting_Hagumi: document.getElementById('formDT_WaitingHagumi').value || '',
+                DT_Waiting_Crane: document.getElementById('formDT_WaitingCrane').value || '',
+                DT_Hagumi_Separator: document.getElementById('formDT_Hagumi').value || '',
+                DT_Winder_Top_End: document.getElementById('formDT_Winder').value || '',
+                DT_Cleaning_Mesin: document.getElementById('formDT_Cleaning').value || '',
+                DT_Machine_Problem: document.getElementById('formDT_MachineProb').value || '',
+                DT_Other: document.getElementById('formDT_Other').value || ''
+            };
+            
+            // Add row to table
+            addRow(formData);
+            
+            // Close modal and reset
+            closeModal();
+            
+            showNotification('Data berhasil ditambahkan ke tabel!');
+        }
+        
+        // ==========================================
+        // UI FUNCTIONS
+        // ==========================================
+        
+        function showLoading(show) {
+            document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
+        }
+        
+        function showNotification(message, type = 'success') {
+            const notif = document.getElementById('notification');
+            notif.textContent = message;
+            notif.className = 'notification ' + type;
+            notif.style.display = 'block';
+            setTimeout(() => {
+                notif.style.display = 'none';
+            }, 3000);
+        }
+        
+        function addRow(data = null) {
+            const tbody = document.getElementById('tableBody');
+            const rowCount = tbody.rows.length + 1;
+            const rowId = data ? data.ID : 'new_' + Date.now();
+            
+            const newRow = document.createElement('tr');
+            newRow.dataset.id = rowId;
+            
+            newRow.innerHTML = `
+                <td class="text-center">${rowCount}</td>
+                <td><input type="text" class="table-input" value="${data ? data.CCNO || '' : ''}"></td>
+                <td><input type="text" class="table-input text-left px-1" value="${data ? data.Customer || '' : ''}"></td>
+                <td><input type="text" class="table-input" value="${data ? data.Spec || '' : ''}"></td>
+                <td><input type="text" class="table-input" value="${data ? data.MC_Semi_Prod_Size || '' : ''}"></td>
+                <td><input type="text" class="table-input" value="${data ? data.Actual_Width_MC || '' : ''}"></td>
+                <td><input type="text" class="table-input" value="${data ? data.Weight || '' : ''}"></td>
+                <td><input type="text" class="table-input" value="${data ? data.Product_Size || '' : ''}"></td>
+                <td><input type="text" class="table-input" value="${data ? data.FG || '' : ''}"></td>
+                <td><input type="text" class="table-input" value="${data ? data.NG || '' : ''}"></td>
+                <td><input type="text" class="table-input" value="${data ? data.Total_Skid || '' : ''}"></td>
+                <td><input type="text" class="table-input" value="${data ? data.Total_Length || '' : ''}"></td>
+                <td><input type="text" class="table-input" value="${data ? data.Coil_Set_Lifter || '' : ''}"></td>
+                <td><input type="text" class="table-input" value="${data ? data.Start_Process || '' : ''}"></td>
+                <td><input type="text" class="table-input" value="${data ? data.End_Process || '' : ''}"></td>
+                <td><input type="text" class="table-input" value="${data ? data.Produk_Keluar_Mesin || '' : ''}"></td>
+                
+                <!-- Down Time Data Cells -->
+                <td><input type="text" class="table-input bg-gray-50" value="${data ? data.DT_TBM || '' : ''}"></td>
+                <td><input type="text" class="table-input bg-gray-50" value="${data ? data.DT_Packing_Coil_Back || '' : ''}"></td>
+                <td><input type="text" class="table-input bg-gray-50" value="${data ? data.DT_Waiting_MC || '' : ''}"></td>
+                <td><input type="text" class="table-input bg-gray-50" value="${data ? data.DT_Waiting_Hagumi || '' : ''}"></td>
+                <td><input type="text" class="table-input bg-gray-50" value="${data ? data.DT_Waiting_Crane || '' : ''}"></td>
+                <td><input type="text" class="table-input bg-gray-50" value="${data ? data.DT_Hagumi_Separator || '' : ''}"></td>
+                <td><input type="text" class="table-input bg-gray-50" value="${data ? data.DT_Winder_Top_End || '' : ''}"></td>
+                <td><input type="text" class="table-input bg-gray-50" value="${data ? data.DT_Cleaning_Mesin || '' : ''}"></td>
+                <td><input type="text" class="table-input bg-gray-50" value="${data ? data.DT_Machine_Problem || '' : ''}"></td>
+                <td><input type="text" class="table-input bg-gray-50" value="${data ? data.DT_Other || '' : ''}"></td>
+                
+                <td><input type="text" class="table-input" value="${data ? data.Line_Speed || '' : ''}"></td>
+                <td><input type="text" class="table-input text-left px-1" value="${data ? data.Remark || '' : ''}"></td>
+                <td class="text-center bg-gray-50">
+                    <button onclick="removeRow(this)" class="text-red-600 hover:text-red-800 text-[9px] font-bold">HAPUS</button>
+                </td>
+            `;
+            
+            tbody.appendChild(newRow);
+            updateCount();
+            updateTotals();
+        }
+        
+        function removeRow(btn) {
+            const row = btn.closest('tr');
+            const rowId = row.dataset.id;
+            
+            // If existing record, delete from server
+            if (!rowId.startsWith('new_')) {
+                if (confirm('Delete this record from database?')) {
+                    deleteFromServer(rowId);
+                }
+            }
+            
+            row.remove();
+            renumberRows();
+            updateCount();
+            updateTotals();
+        }
+        
+        function renumberRows() {
+            const rows = document.querySelectorAll('#tableBody tr');
+            rows.forEach((row, index) => {
+                row.cells[0].textContent = index + 1;
+            });
+        }
+        
+        function updateCount() {
+            const tbody = document.getElementById('tableBody');
+            document.getElementById('itemCount').textContent = tbody.rows.length;
+        }
+        
+        function updateTotals() {
+            const rows = document.querySelectorAll('#tableBody tr');
+            let totalCoil = 0;
+            let totalWeight = 0;
+            
+            rows.forEach(row => {
+                const skid = parseFloat(row.cells[10].querySelector('input').value) || 0;
+                const weight = parseFloat(row.cells[6].querySelector('input').value.replace(/,/g, '')) || 0;
+                totalCoil += skid;
+                totalWeight += weight;
+            });
+            
+            document.getElementById('totalCoil').textContent = totalCoil;
+            document.getElementById('totalWeight').textContent = totalWeight.toLocaleString();
+        }
+        
+        function clearAll() {
+            if (confirm('Clear all data? Unsaved changes will be lost.')) {
+                document.getElementById('tableBody').innerHTML = '';
+                updateCount();
+                updateTotals();
+            }
+        }
+        
+        function getLineMembers() {
+            const members = [];
+            for (let i = 1; i <= 10; i++) {
+                const val = document.getElementById('member' + i).value;
+                if (val) members.push(val);
+            }
+            return members;
+        }
+        
+        function setLineMembers(members) {
+            for (let i = 1; i <= 10; i++) {
+                document.getElementById('member' + i).value = members[i-1] || '';
+            }
+        }
+        
+        // ==========================================
+        // API FUNCTIONS
+        // ==========================================
+        
+        async function saveAllData() {
+            const rows = document.querySelectorAll('#tableBody tr');
+            if (rows.length === 0) {
+                showNotification('No data to save', 'error');
+                return;
+            }
+            
+            showLoading(true);
+            
+            const reportDate = document.getElementById('reportDate').value;
+            const line = document.getElementById('lineSelect').value;
+            const ot = document.getElementById('otInput').value;
+            const lineMembers = getLineMembers();
+            
+            const savePromises = [];
+            
+            rows.forEach((row, index) => {
+                const inputs = row.querySelectorAll('input');
+                const rowId = row.dataset.id;
+                
+                const data = {
+                    action: rowId.startsWith('new_') ? 'saveReport' : 'updateReport',
+                    id: rowId.startsWith('new_') ? null : rowId,
+                    reportDate: reportDate,
+                    line: line,
+                    ot: ot,
+                    no: index + 1,
+                    ccno: inputs[0].value,
+                    customer: inputs[1].value,
+                    spec: inputs[2].value,
+                    mcSize: inputs[3].value,
+                    actualWidth: inputs[4].value,
+                    weight: inputs[5].value,
+                    productSize: inputs[6].value,
+                    fg: inputs[7].value,
+                    ng: inputs[8].value,
+                    totalSkid: inputs[9].value,
+                    totalLength: inputs[10].value,
+                    coilSetLifter: inputs[11].value,
+                    startProcess: inputs[12].value,
+                    endProcess: inputs[13].value,
+                    produkKeluarMesin: inputs[14].value,
+                    dtTBM: inputs[15].value,
+                    dtPackingCoilBack: inputs[16].value,
+                    dtWaitingMC: inputs[17].value,
+                    dtWaitingHagumi: inputs[18].value,
+                    dtWaitingCrane: inputs[19].value,
+                    dtHagumiSeparator: inputs[20].value,
+                    dtWinderTopEnd: inputs[21].value,
+                    dtCleaningMesin: inputs[22].value,
+                    dtMachineProblem: inputs[23].value,
+                    dtOther: inputs[24].value,
+                    lineSpeed: inputs[25].value,
+                    remark: inputs[26].value,
+                    lineMembers: lineMembers
+                };
+                
+                savePromises.push(
+                    fetch(GAS_WEB_APP_URL, {
+                        method: 'POST',
+                        body: JSON.stringify(data)
+                    }).then(res => res.json())
+                );
+            });
+            
+            try {
+                const results = await Promise.all(savePromises);
+                const allSuccess = results.every(r => r.success);
+                
+                if (allSuccess) {
+                    showNotification('All data saved successfully!');
+                    // Refresh to get new IDs
+                    loadByDate();
+                } else {
+                    showNotification('Some records failed to save', 'error');
+                }
+            } catch (error) {
+                showNotification('Error: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        async function deleteFromServer(id) {
+            try {
+                const response = await fetch(GAS_WEB_APP_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: 'deleteReport',
+                        id: id
+                    })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    showNotification('Record deleted');
+                }
+            } catch (error) {
+                console.error('Delete error:', error);
+            }
+        }
+        
+        async function loadByDate() {
+            const date = document.getElementById('reportDate').value;
+            if (!date) {
+                showNotification('Please select a date', 'error');
+                return;
+            }
+            
+            showLoading(true);
+            
+            try {
+                const response = await fetch(`${GAS_WEB_APP_URL}?action=getByDate&date=${date}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    populateTable(result.data);
+                    showNotification(`Loaded ${result.data.length} records`);
+                } else {
+                    showNotification('Error loading data', 'error');
+                }
+            } catch (error) {
+                showNotification('Error: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        async function loadByLine() {
+            const line = document.getElementById('lineSelect').value;
+            
+            showLoading(true);
+            
+            try {
+                const response = await fetch(`${GAS_WEB_APP_URL}?action=getByLine&line=${line}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    populateTable(result.data);
+                    showNotification(`Loaded ${result.data.length} records for ${line}`);
+                } else {
+                    showNotification('Error loading data', 'error');
+                }
+            } catch (error) {
+                showNotification('Error: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        function populateTable(data) {
+            document.getElementById('tableBody').innerHTML = '';
+            
+            if (data.length === 0) {
+                showNotification('No data found');
+                return;
+            }
+            
+            // Set header info from first record
+            if (data[0].Date) {
+                document.getElementById('reportDate').value = data[0].Date;
+            }
+            if (data[0].Line) {
+                document.getElementById('lineSelect').value = data[0].Line;
+            }
+            if (data[0].OT) {
+                document.getElementById('otInput').value = data[0].OT;
+            }
+            
+            // Set line members
+            if (data[0].lineMembers) {
+                setLineMembers(data[0].lineMembers);
+            }
+            
+            // Add rows
+            data.forEach(record => {
+                addRow(record);
+            });
+            
+            updateTotals();
+        }
+        
+        // Add event listeners for real-time total calculation
+        document.addEventListener('input', function(e) {
+            if (e.target.classList.contains('table-input')) {
+                updateTotals();
+            }
+        });
+        
+        // Close modal when clicking outside
+        document.getElementById('qrModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+    </script>
+</body>
+</html>
