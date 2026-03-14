@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Production Report System</title>
+    <title>Production Report System - QR Scanner</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
@@ -15,15 +16,16 @@
         input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         .table-input { width: 100%; height: 100%; border: none; padding: 4px; font-size: 11px; }
         .table-input:focus { outline: 2px solid #2563eb; outline-offset: -2px; }
+        .modal-overlay { background-color: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px); }
     </style>
 </head>
 <body class="bg-gray-100 text-[11px]">
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useRef } = React;
 
-        // ICONS (Inline SVGs for Lucide-like icons)
+        // ICONS
         const PlusIcon = () => (
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
         );
@@ -33,27 +35,23 @@
         const LoaderIcon = () => (
             <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
         );
+        const XIcon = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        );
 
         const App = () => {
             const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxZ2Q1pF2bgf3DTxI947cd3Lbz_GnrwJ52i_nJY6kREMkP_l7oLonXc6N6ukCJoAj7yhw/exec"; 
 
-            const lineOptions = [
-                "LV1", "LM1", "LM2", "LM3", "SL1", "SL2", "SL3", "MS1", "MS2", 
-                "EMBOSS", "DS1", "DS2", "DS3", "REWORK", "REPACK"
-            ];
+            const lineOptions = ["LV1", "LM1", "LM2", "LM3", "SL1", "SL2", "SL3", "MS1", "MS2", "EMBOSS", "DS1", "DS2", "DS3", "REWORK", "REPACK"];
 
             const [isLoading, setIsLoading] = useState(false);
             const [status, setStatus] = useState({ type: '', message: '' });
-            const [rows, setRows] = useState([
-                { 
-                    id: 1, no: 1, ccno: '', customer: '', spec: '', mc_semi: '', actual_width: '', 
-                    weight: '', product_size: '', qty_fg: '', qty_ng: '', cut: '', total_length: '', 
-                    coil_set: '', start_proc: '', end_proc: '', prod_keluar: '', 
-                    tbm: '', packing_back: '', waiting_mc: '', waiting_hagumi: '', waiting_crane: '', 
-                    hagumi_separator: '', winder: '', cleaning: '', machine_prob: '', other: '', 
-                    line_speed: '', remark: '' 
-                }
-            ]);
+            const [showScanner, setShowScanner] = useState(false);
+            const [showFormModal, setShowFormModal] = useState(false);
+            
+            const [rows, setRows] = useState([]);
+            const [currentEntry, setCurrentEntry] = useState(null);
+            const scannerRef = useRef(null);
 
             const [header, setHeader] = useState({
                 tanggal: new Date().toISOString().split('T')[0],
@@ -63,16 +61,61 @@
 
             const [members, setMembers] = useState(Array(10).fill(''));
 
-            const addRow = () => {
-                const newId = rows.length > 0 ? Math.max(...rows.map(r => r.id)) + 1 : 1;
-                setRows([...rows, { 
-                    id: newId, no: rows.length + 1, ccno: '', customer: '', spec: '', mc_semi: '', 
-                    actual_width: '', weight: '', product_size: '', qty_fg: '', qty_ng: '', 
+            // Initializing scanner logic
+            useEffect(() => {
+                if (showScanner) {
+                    const html5QrCode = new Html5Qrcode("reader");
+                    scannerRef.current = html5QrCode;
+                    
+                    html5QrCode.start(
+                        { facingMode: "environment" },
+                        { fps: 10, qrbox: { width: 250, height: 250 } },
+                        (decodedText) => {
+                            handleScanSuccess(decodedText);
+                        },
+                        (errorMessage) => { /* ignore errors */ }
+                    ).catch(err => console.error("Scanner error:", err));
+
+                    return () => {
+                        if (scannerRef.current) {
+                            scannerRef.current.stop().catch(e => console.error(e));
+                        }
+                    };
+                }
+            }, [showScanner]);
+
+            const handleScanSuccess = (text) => {
+                // Split by comma: Data 1, 2, 3, ..., 9
+                const parts = text.split(',');
+                if (parts.length < 6) {
+                    alert("Format QR Code tidak valid (minimal 6 data dipisahkan koma)");
+                    return;
+                }
+
+                // Map data: 1->CCNO, 2->Spec, 3->MC Semi, 6->Weight
+                const newEntry = {
+                    ccno: parts[0]?.trim() || '',
+                    spec: parts[1]?.trim() || '',
+                    mc_semi: parts[2]?.trim() || '',
+                    weight: parts[5]?.trim() || '',
+                    // Default fields
+                    customer: '', actual_width: '', product_size: '', qty_fg: '', qty_ng: '', 
                     cut: '', total_length: '', coil_set: '', start_proc: '', end_proc: '', 
                     prod_keluar: '', tbm: '', packing_back: '', waiting_mc: '', 
                     waiting_hagumi: '', waiting_crane: '', hagumi_separator: '', winder: '', 
-                    cleaning: '', machine_prob: '', other: '', line_speed: '', remark: '' 
-                }]);
+                    cleaning: '', machine_prob: '', other: '', line_speed: '', remark: ''
+                };
+
+                setCurrentEntry(newEntry);
+                setShowScanner(false);
+                setShowFormModal(true);
+            };
+
+            const confirmEntry = () => {
+                const newId = rows.length > 0 ? Math.max(...rows.map(r => r.id)) + 1 : 1;
+                setRows([...rows, { ...currentEntry, id: newId, no: rows.length + 1 }]);
+                setShowFormModal(false);
+                setCurrentEntry(null);
             };
 
             const updateRow = (id, field, value) => {
@@ -81,16 +124,14 @@
 
             const handleSave = async () => {
                 setIsLoading(true);
-                setStatus({ type: '', message: '' });
-
                 const payload = {
                     header: header,
                     members: members.filter(m => m.trim() !== ""),
-                    rows: rows.filter(r => r.ccno.trim() !== "")
+                    rows: rows
                 };
 
                 if (payload.rows.length === 0) {
-                    setStatus({ type: 'error', message: 'Isi minimal satu baris data (CCNO)!' });
+                    setStatus({ type: 'error', message: 'Belum ada data yang diinput!' });
                     setIsLoading(false);
                     return;
                 }
@@ -102,11 +143,10 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload)
                     });
-
-                    setStatus({ type: 'success', message: 'Data terkirim ke Google Sheets!' });
+                    setStatus({ type: 'success', message: 'Data berhasil terkirim!' });
                     setTimeout(() => setStatus({ type: '', message: '' }), 5000);
                 } catch (error) {
-                    setStatus({ type: 'error', message: 'Gagal mengirim data. Cek koneksi.' });
+                    setStatus({ type: 'error', message: 'Gagal mengirim data.' });
                 } finally {
                     setIsLoading(false);
                 }
@@ -114,14 +154,82 @@
 
             return (
                 <div className="max-w-[1450px] mx-auto bg-white shadow-lg min-h-screen flex flex-col p-4 relative">
+                    
+                    {/* MODAL SCANNER */}
+                    {showScanner && (
+                        <div className="fixed inset-0 z-[100] modal-overlay flex items-center justify-center p-4">
+                            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+                                <div className="p-4 border-b flex justify-between items-center bg-gray-50">
+                                    <h2 className="text-lg font-bold uppercase tracking-tight">Scan QR Code Produksi</h2>
+                                    <button onClick={() => setShowScanner(false)} className="text-gray-500 hover:text-black">
+                                        <XIcon />
+                                    </button>
+                                </div>
+                                <div id="reader" className="w-full aspect-square bg-black"></div>
+                                <div className="p-4 text-center text-gray-600 italic text-[10px]">
+                                    Arahkan kamera ke QR Code Label Produksi
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* MODAL FORM INPUT SETELAH SCAN */}
+                    {showFormModal && currentEntry && (
+                        <div className="fixed inset-0 z-[100] modal-overlay flex items-center justify-center p-4 overflow-y-auto">
+                            <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl">
+                                <div className="p-4 border-b flex justify-between items-center bg-blue-600 text-white">
+                                    <h2 className="text-lg font-bold uppercase">Lengkapi Data Produksi</h2>
+                                    <button onClick={() => setShowFormModal(false)}><XIcon /></button>
+                                </div>
+                                <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="col-span-full bg-gray-100 p-3 rounded grid grid-cols-2 md:grid-cols-4 gap-4 mb-2">
+                                        <div><label className="block font-bold">CCNO</label><p className="text-blue-700 font-bold text-lg">{currentEntry.ccno}</p></div>
+                                        <div><label className="block font-bold">SPEC</label><p className="text-blue-700 font-bold">{currentEntry.spec}</p></div>
+                                        <div><label className="block font-bold">MC/SEMI</label><p className="text-blue-700 font-bold">{currentEntry.mc_semi}</p></div>
+                                        <div><label className="block font-bold">WEIGHT</label><p className="text-blue-700 font-bold text-lg">{currentEntry.weight}</p></div>
+                                    </div>
+                                    
+                                    <div>
+                                        <label className="block font-bold mb-1">Customer</label>
+                                        <input className="w-full border p-2 rounded" type="text" value={currentEntry.customer} onChange={e => setCurrentEntry({...currentEntry, customer: e.target.value})} />
+                                    </div>
+                                    <div>
+                                        <label className="block font-bold mb-1">Product Size</label>
+                                        <input className="w-full border p-2 rounded" type="text" value={currentEntry.product_size} onChange={e => setCurrentEntry({...currentEntry, product_size: e.target.value})} />
+                                    </div>
+                                    <div>
+                                        <label className="block font-bold mb-1">Width MC</label>
+                                        <input className="w-full border p-2 rounded" type="text" value={currentEntry.actual_width} onChange={e => setCurrentEntry({...currentEntry, actual_width: e.target.value})} />
+                                    </div>
+                                    <div>
+                                        <label className="block font-bold mb-1">Qty FG</label>
+                                        <input className="w-full border p-2 rounded" type="number" value={currentEntry.qty_fg} onChange={e => setCurrentEntry({...currentEntry, qty_fg: e.target.value})} />
+                                    </div>
+                                    <div>
+                                        <label className="block font-bold mb-1">Qty NG</label>
+                                        <input className="w-full border p-2 rounded" type="number" value={currentEntry.qty_ng} onChange={e => setCurrentEntry({...currentEntry, qty_ng: e.target.value})} />
+                                    </div>
+                                    <div>
+                                        <label className="block font-bold mb-1">Total Length</label>
+                                        <input className="w-full border p-2 rounded" type="text" value={currentEntry.total_length} onChange={e => setCurrentEntry({...currentEntry, total_length: e.target.value})} />
+                                    </div>
+                                    <div className="col-span-full border-t pt-4 flex justify-end gap-3">
+                                        <button onClick={() => setShowFormModal(false)} className="px-6 py-2 border rounded hover:bg-gray-50 uppercase font-bold">Batal</button>
+                                        <button onClick={confirmEntry} className="px-10 py-2 bg-green-600 text-white rounded hover:bg-green-700 uppercase font-bold shadow-lg">Tambahkan Ke Laporan</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* STATUS NOTIFICATION */}
                     {status.message && (
-                        <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-md shadow-2xl text-white font-bold animate-pulse ${
-                            status.type === 'success' ? 'bg-green-600' : 'bg-red-600'
-                        }`}>
+                        <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[150] px-6 py-3 rounded-md shadow-2xl text-white font-bold animate-bounce ${status.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
                             {status.message}
                         </div>
                     )}
 
+                    {/* HEADER SECTION */}
                     <div className="flex justify-between items-start border-b-2 border-black pb-2 mb-4">
                         <div className="w-1/3">
                             <div className="flex items-center gap-2 mb-2">
@@ -145,10 +253,10 @@
                                     <input type="text" className="w-16 border-none text-center focus:ring-0 p-0 uppercase" value={header.ot} onChange={(e) => setHeader({...header, ot: e.target.value})} placeholder="..." />
                                 </div>
                             </div>
-                            <span className="text-[9px] italic font-serif">PM 5.5.1/L1 Rev. 5</span>
                         </div>
                     </div>
 
+                    {/* TABLE SECTION */}
                     <div className="flex-grow overflow-auto border border-black">
                         <table className="w-full border-collapse table-fixed min-w-[2100px] uppercase">
                             <thead className="sticky top-0 bg-white z-10 text-center">
@@ -187,6 +295,11 @@
                                 </tr>
                             </thead>
                             <tbody>
+                                {rows.length === 0 && (
+                                    <tr>
+                                        <td colSpan="28" className="h-20 text-center text-gray-400 italic font-bold">Klik tombol (+) untuk scan label dan menambah data</td>
+                                    </tr>
+                                )}
                                 {rows.map((row) => (
                                     <tr key={row.id} className="h-8 hover:bg-blue-50 transition-colors">
                                         <td className="border border-black text-center bg-gray-50 font-bold">{row.no}</td>
@@ -215,6 +328,7 @@
                         </table>
                     </div>
 
+                    {/* FOOTER SECTION */}
                     <div className="mt-4 grid grid-cols-12 gap-4 h-48 overflow-hidden uppercase">
                         <div className="col-span-4 border border-black flex flex-col h-full">
                             <div className="bg-gray-100 border-b border-black text-center font-bold text-sm py-1">Line Member</div>
@@ -252,30 +366,29 @@
                             </div>
                         </div>
 
-                        <div className="col-span-4 border border-black bg-blue-50/40 p-2 text-[10px] flex flex-col justify-between italic">
+                        <div className="col-span-5 border border-black bg-blue-50/40 p-2 text-[10px] flex flex-col justify-between italic">
                             <div>
-                                <p className="font-black underline mb-1">DEFINISI & RULE</p>
-                                <p><strong>Coil Set</strong>: Pasang coil ke drum. <strong>Start</strong>: Setting otomatis running. <strong>End</strong>: Coil lepas drum.</p>
-                                <ul className="list-disc ml-3 mt-1 leading-tight">
-                                    <li>Input minimal 1 baris CCNO untuk simpan.</li>
-                                    <li>Gunakan TAB untuk navigasi cepat.</li>
-                                </ul>
+                                <p className="font-black underline mb-1">PROSEDUR SCAN QR</p>
+                                <ol className="list-decimal ml-3 leading-tight">
+                                    <li>Klik tombol (+) biru di bawah.</li>
+                                    <li>Arahkan kamera ke QR Label (Data CSV 9 kolom).</li>
+                                    <li>Data CCNO, Spec, MC/Semi, Weight akan terisi otomatis.</li>
+                                    <li>Lengkapi sisa data pada form pop-up, lalu simpan ke tabel.</li>
+                                </ol>
                             </div>
-                            <p className="text-[8px] opacity-70 uppercase font-bold text-blue-900">PM 5.5.1/L1 Rev. 5</p>
-                        </div>
-
-                        <div className="col-span-1 border border-black flex flex-col">
-                            <div className="text-[9px] text-center border-b border-black py-1 font-bold bg-gray-100">LEADER</div>
-                            <div className="flex-grow"></div>
+                            <p className="text-[8px] opacity-70 uppercase font-bold text-blue-900">Digital Production Report v2.0</p>
                         </div>
                     </div>
 
+                    {/* FLOATING ACTION BUTTONS */}
                     <div className="fixed bottom-6 right-6 flex flex-col gap-3">
-                        <button onClick={addRow} className="bg-blue-600 text-white p-4 rounded-full shadow-2xl hover:bg-blue-700 active:scale-90 transition-all">
+                        <button onClick={() => setShowScanner(true)} className="bg-blue-600 text-white p-4 rounded-full shadow-2xl hover:bg-blue-700 active:scale-90 transition-all group flex items-center gap-2">
                             <PlusIcon />
+                            <span className="hidden group-hover:inline pr-2 font-bold">SCAN QR</span>
                         </button>
-                        <button onClick={handleSave} disabled={isLoading} className={`${isLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'} text-white p-4 rounded-full shadow-2xl active:scale-90 transition-all`}>
+                        <button onClick={handleSave} disabled={isLoading} className={`${isLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'} text-white p-4 rounded-full shadow-2xl active:scale-90 transition-all flex items-center gap-2 group`}>
                             {isLoading ? <LoaderIcon /> : <SaveIcon />}
+                            <span className="hidden group-hover:inline pr-2 font-bold">SAVE ALL</span>
                         </button>
                     </div>
                 </div>
