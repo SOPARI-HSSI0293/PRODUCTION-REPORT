@@ -212,10 +212,10 @@
                                 <div className="p-6 grid grid-cols-1 md:grid-cols-4 gap-4">
                                     {/* Data Hasil Scan QR (Terisi Otomatis) */}
                                     <div className="col-span-full text-blue-700 font-bold uppercase text-[10px] border-b border-blue-200 pb-1 mb-2">Data dari QR Code (Terisi Otomatis)</div>
-                                    <div><label className="block font-bold mb-1 text-blue-700">CCNO</label><input className="w-full border border-blue-300 bg-blue-50 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-900" type="text" value={currentEntry.ccno} disabled /></div>
-                                    <div><label className="block font-bold mb-1 text-blue-700">Spec</label><input className="w-full border border-blue-300 bg-blue-50 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-900" type="text" value={currentEntry.spec} disabled /></div>
-                                    <div><label className="block font-bold mb-1 text-blue-700">MC/Semi</label><input className="w-full border border-blue-300 bg-blue-50 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-900" type="text" value={currentEntry.mc_semi} disabled /></div>
-                                    <div><label className="block font-bold mb-1 text-blue-700">Weight</label><input className="w-full border border-blue-300 bg-blue-50 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-900" type="text" value={currentEntry.weight} disabled /></div>
+                                    <div><label className="block font-bold mb-1 text-blue-700">CCNO</label><input className="w-full border border-blue-300 bg-blue-100 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-900" type="text" value={currentEntry.ccno} readOnly  /></div>
+                                    <div><label className="block font-bold mb-1 text-blue-700">Spec</label><input className="w-full border border-blue-300 bg-blue-100 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-900" type="text" value={currentEntry.spec} readOnly  /></div>
+                                    <div><label className="block font-bold mb-1 text-blue-700">MC/Semi</label><input className="w-full border border-blue-300 bg-blue-100 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-900" type="text" value={currentEntry.mc_semi} readOnly  /></div>
+                                    <div><label className="block font-bold mb-1 text-blue-700">Weight</label><input className="w-full border border-blue-300 bg-blue-100 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-900" type="text" value={currentEntry.weight} readOnly  /></div>
                                     
                                     <div className="col-span-full border-t border-gray-200 mt-2"></div>
 
@@ -352,7 +352,7 @@
                                     </tr>
                                 )}
                                 {rows.map((row) => (
-                                    <tr key={row.id} className="h-8 hover:bg-blue-50 transition-colors">
+                                    <tr key={row.id} className="h-8 hover:bg-blue-100 transition-colors">
                                         <td className="border border-black text-center bg-gray-50 font-bold">{row.no}</td>
                                         {[ 'ccno', 'customer', 'spec', 'mc_semi', 'actual_width', 'weight', 'product_size', 'qty_fg', 'qty_ng', 'cut', 'total_length', 'coil_set' ].map(field => (
                                             <td key={field} className="border border-black p-0">
@@ -417,7 +417,7 @@
                             </div>
                         </div>
 
-                        <div className="col-span-5 border border-black bg-blue-50/40 p-2 text-[10px] flex flex-col justify-between italic">
+                        <div className="col-span-5 border border-black bg-blue-100/40 p-2 text-[10px] flex flex-col justify-between italic">
                             <div>
                                 <p className="font-black underline mb-1">PROSEDUR & UPDATE</p>
                                 <ol className="list-decimal ml-3 leading-tight">
